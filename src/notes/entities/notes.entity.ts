@@ -1,0 +1,56 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { ProfileEntity } from 'src/profile/entities/profile.entity';
+import { NoteViewEntity } from './note-view.entity';
+import { NoteLikeEntity } from './note-like.entity';
+import { NoteCommentEntity } from './note-comment.entity';
+
+@Entity()
+export class NotesEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ nullable: true })
+  title: string;
+
+  @Column('text')
+  content: string;
+
+  @CreateDateColumn()
+  createdAt: string;
+
+  @UpdateDateColumn()
+  updatedAt: string;
+
+  @OneToMany(() => NoteViewEntity, (v) => v.note)
+  views: NoteViewEntity[];
+
+  @OneToMany(() => NoteLikeEntity, (l) => l.note)
+  likes: NoteLikeEntity[];
+
+  @OneToMany(() => NoteCommentEntity, (c) => c.note)
+  comments: NoteCommentEntity[];
+
+
+  @ManyToOne(() => ProfileEntity, (profile) => profile.notes, {
+    onDelete: 'CASCADE',
+  })
+  profile: ProfileEntity;
+
+  @ManyToMany(() => ProfileEntity)
+  @JoinTable({
+    name: 'note_shares',
+    joinColumn: { name: 'note_id' },
+    inverseJoinColumn: { name: 'profile_id' },
+  })
+  sharedWith: ProfileEntity[];
+}
