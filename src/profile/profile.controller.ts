@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
-import { JwtAuthGuard } from './../common/jwt-guard';
+import { JwtAuthGuard } from '../common/jwt-strategy/jwt-guards';
 import { ProfileService } from './profile.service';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';

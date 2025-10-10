@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, NotFoundException } from "@nestjs/common";
 import { NotesService } from "./notes.service";
-import { JwtAuthGuard } from "./../common/jwt-guard";
+import { JwtAuthGuard } from "../common/jwt-strategy/jwt-guards";
 import { CreateNoteDto } from "./dto/note-create-dto";
 import { UpdateNoteDto } from "./dto/not-update-dto";
 import { ApiBearerAuth } from "@nestjs/swagger";

@@ -10,7 +10,7 @@ import {
   Get,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam, ApiBody } from "@nestjs/swagger";
-import { JwtAuthGuard } from "./../common/jwt-guard";
+import { JwtAuthGuard } from "../common/jwt-strategy/jwt-guards";
 import { NoteInteractionsService } from "./note-interactions.service";
 
 @ApiTags("Notes Interactions")
