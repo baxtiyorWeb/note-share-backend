@@ -15,7 +15,7 @@ import {
   ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { JwtAuthGuard } from 'src/common/jwt-guard';
+import { JwtAuthGuard } from './../common/jwt-guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 

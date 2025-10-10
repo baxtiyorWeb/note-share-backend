@@ -10,7 +10,7 @@ import {
   Get,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam, ApiBody } from "@nestjs/swagger";
-import { JwtAuthGuard } from "src/common/jwt-guard";
+import { JwtAuthGuard } from "./../common/jwt-guard";
 import { NoteInteractionsService } from "./note-interactions.service";
 
 @ApiTags("Notes Interactions")
@@ -68,6 +68,8 @@ export class NoteInteractionsController {
     @Req() req,
     @Param("commentId", ParseIntPipe) commentId: number,
   ) {
+
+
     return this.service.deleteComment(commentId, req.user.sub);
   }
 }

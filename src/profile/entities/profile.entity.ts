@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, BeforeInsert, OneToMany } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { UserEntity } from 'src/users/entities/user.entity';
-import { NotesEntity } from 'src/notes/entities/notes.entity';
+import { UserEntity } from './../../users/entities/user.entity';
+import { NotesEntity } from './../../notes/entities/notes.entity';
 
 @Entity()
 export class ProfileEntity {
@@ -19,6 +19,9 @@ export class ProfileEntity {
 
   @Column({ nullable: true })
   avatar?: string;
+
+  @Column({ nullable: true })
+  coverImage?: string;
 
   @OneToOne(() => UserEntity, (user) => user.profile)
   user: UserEntity;

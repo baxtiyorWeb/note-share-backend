@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { NotesEntity } from 'src/notes/entities/notes.entity';
-import { NoteViewEntity } from 'src/notes/entities/note-view.entity';
-import { NoteLikeEntity } from 'src/notes/entities/note-like.entity';
-import { NoteCommentEntity } from 'src/notes/entities/note-comment.entity';
-import { ProfileEntity } from 'src/profile/entities/profile.entity';
+import { NotesEntity } from './../notes/entities/notes.entity';
+import { NoteViewEntity } from './../notes/entities/note-view.entity';
+import { NoteLikeEntity } from './../notes/entities/note-like.entity';
+import { NoteCommentEntity } from './../notes/entities/note-comment.entity';
+import { ProfileEntity } from './../profile/entities/profile.entity';
 
 @Injectable()
 export class DashboardService {

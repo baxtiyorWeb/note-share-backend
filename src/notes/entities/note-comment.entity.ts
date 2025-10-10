@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from "typeorm";
 import { NotesEntity } from "./notes.entity";
-import { ProfileEntity } from "src/profile/entities/profile.entity";
+import { ProfileEntity } from "./../../profile/entities/profile.entity";
 
 @Entity("note_comments")
 export class NoteCommentEntity {

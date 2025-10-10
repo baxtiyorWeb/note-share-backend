@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, Unique } from "typeorm";
 import { NotesEntity } from "./notes.entity";
-import { ProfileEntity } from "src/profile/entities/profile.entity";
+import { ProfileEntity } from "./../../profile/entities/profile.entity";
 
 @Entity("note_views")
 @Unique(["note", "viewer"])

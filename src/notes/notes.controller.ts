@@ -1,12 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, NotFoundException } from "@nestjs/common";
 import { NotesService } from "./notes.service";
-import { JwtAuthGuard } from "src/common/jwt-guard";
+import { JwtAuthGuard } from "./../common/jwt-guard";
 import { CreateNoteDto } from "./dto/note-create-dto";
 import { UpdateNoteDto } from "./dto/not-update-dto";
-import { ShareNoteDto } from "./dto/note-share-dto";
 import { ApiBearerAuth } from "@nestjs/swagger";
 import type { Request } from "express";
-import { ProfileEntity } from "src/profile/entities/profile.entity";
+import { ProfileEntity } from "./../profile/entities/profile.entity";
 import { Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 
@@ -29,7 +28,7 @@ export class NotesController {
 
   @Get()
   findAll(@Req() req) {
-    return this.notesService.findAll(req.user.sub);
+    return this.notesService.findAllMyNotes(req.user.sub);
   }
 
   @Get('/shared-with-me')

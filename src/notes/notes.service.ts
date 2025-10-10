@@ -2,11 +2,10 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException, B
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, In } from "typeorm";
 import { NotesEntity } from "./entities/notes.entity";
-import { ProfileEntity } from "src/profile/entities/profile.entity";
+import { ProfileEntity } from "./../profile/entities/profile.entity";
 import { CreateNoteDto } from "./dto/note-create-dto";
 import { UpdateNoteDto } from "./dto/not-update-dto";
-import { ShareNoteDto } from "./dto/note-share-dto";
-import { UserEntity } from "src/users/entities/user.entity";
+import { UserEntity } from "./../users/entities/user.entity";
 
 @Injectable()
 export class NotesService {
@@ -33,15 +32,26 @@ export class NotesService {
     return await this.noteRepo.save(note);
   }
 
-  async findAll(profileId: number) {
+  async findAllMyNotes(userId: number) {
+    // 1️⃣ Avval userni profil bilan birga topamiz
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ["profile"],
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (!user.profile) {
+      throw new NotFoundException("Profile not found for this user");
+    }
+
+    // 2️⃣ Endi shu profil ID orqali note larni olamiz
     const notes = await this.noteRepo.find({
-      where: [
-        { profile: { id: profileId } },
-        { sharedWith: { id: profileId } },
-      ],
+      where: { profile: { id: user.profile.id } },
       relations: [
         "profile",
-        "sharedWith",
         "views",
         "views.viewer",
         "likes",
@@ -49,19 +59,19 @@ export class NotesService {
         "comments",
         "comments.author",
       ],
-      order: {
-        createdAt: "DESC",
-        comments: { createdAt: "DESC" },
-      },
+      order: { createdAt: "DESC" },
     });
 
-    return notes.map((note) => ({
+    // 3️⃣ Qo‘shimcha statistika qo‘shish (ixtiyoriy)
+    return notes.map(note => ({
       ...note,
       totalViews: note.views?.length || 0,
       totalLikes: note.likes?.length || 0,
       totalComments: note.comments?.length || 0,
     }));
   }
+
+
 
   async sharedWithMe(profileId: number) {
     const notes = await this.noteRepo
@@ -142,18 +152,33 @@ export class NotesService {
     Object.assign(note, dto);
     return this.noteRepo.save(note);
   }
+  async remove(userId: number, noteId: number) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ["profile"],
+    });
+    if (!user) throw new NotFoundException("User not found");
 
-  async remove(profileId: number, id: number) {
+    const profile = await this.profileRepo.findOne({
+      where: { user: { id: userId } },
+    });
+
     const note = await this.noteRepo.findOne({
-      where: { id },
+      where: { id: noteId },
       relations: ["profile"],
     });
     if (!note) throw new NotFoundException("Note not found");
-    if (note.profile.id !== profileId)
+
+    console.log(note?.profile?.id);
+    console.log(profile?.id);
+
+    if (note.profile.id !== profile?.id) {
       throw new ForbiddenException("You cannot delete this note");
+    }
 
     return this.noteRepo.remove(note);
   }
+
 
   async shareNote(
     noteId: number,

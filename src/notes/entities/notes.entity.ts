@@ -9,7 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ProfileEntity } from 'src/profile/entities/profile.entity';
+import { ProfileEntity } from './../../profile/entities/profile.entity';
 import { NoteViewEntity } from './note-view.entity';
 import { NoteLikeEntity } from './note-like.entity';
 import { NoteCommentEntity } from './note-comment.entity';

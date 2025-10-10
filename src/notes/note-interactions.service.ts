@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotesEntity } from "./entities/notes.entity";
-import { ProfileEntity } from "src/profile/entities/profile.entity";
+import { ProfileEntity } from "./../profile/entities/profile.entity";
 import { NoteViewEntity } from "./entities/note-view.entity";
 import { NoteLikeEntity } from "./entities/note-like.entity";
 import { NoteCommentEntity } from "./entities/note-comment.entity";
@@ -129,6 +129,7 @@ export class NoteInteractionsService {
   }
 
   async deleteComment(commentId: number, profileId: number) {
+    console.log(commentId);
     const comment = await this.commentRepo.findOne({
       where: { id: commentId },
       relations: ["author"],

@@ -1,5 +1,5 @@
-import { NotesEntity } from "src/notes/entities/notes.entity";
-import { UserEntity } from "src/users/entities/user.entity";
+import { NotesEntity } from "./../../notes/entities/notes.entity";
+import { UserEntity } from "./../../users/entities/user.entity";
 
 export class ProfileDto {
   id: number;
@@ -7,6 +7,7 @@ export class ProfileDto {
   lastName: string;
   username: string;
   avatar?: string;
+  coverImage?: string;
   user: UserEntity[];
   notes: NotesEntity[]
 }

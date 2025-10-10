@@ -1,16 +1,74 @@
-import { Body, Controller, Delete, Get, Param, Patch, Put, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/common/jwt-guard';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { JwtAuthGuard } from './../common/jwt-guard';
 import { ProfileService } from './profile.service';
 import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadService } from './../file/uploadService';
 
 @Controller('profile')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(
-    private readonly profileService: ProfileService
+    private readonly profileService: ProfileService,
+    private readonly uploadService: UploadService
   ) { }
+
+  @Post('/upload-avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
+    const id = req.user?.['sub'];
+    if (!id) throw new Error('Unauthorized');
+
+    const avatarUrl = await this.uploadService.uploadFile(file);
+
+    const updatedProfile = await this.profileService.updateProfile(id, { avatar: avatarUrl });
+
+    return {
+      message: 'Avatar successfully uploaded',
+      avatarUrl,
+      profile: updatedProfile,
+    };
+  }
+
+  @Post('/upload-cover-image')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  async uploadCoverImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    const id = req.user?.['sub'];
+    if (!id) {
+      throw new Error('Unauthorized: user ID not found in token');
+    }
+
+    // 1️⃣ Faylni Vercel Blob ga yuklash
+    const coverUrl = await this.uploadService.uploadFile(file);
+
+    // 2️⃣ Profile jadvaliga URL yozish
+    const updatedProfile = await this.profileService.updateProfile(id, {
+      coverImage: coverUrl,
+    });
+
+    // 3️⃣ Natijani qaytarish
+    return {
+      message: 'Cover image uploaded successfully ✅',
+      coverUrl,
+      profile: updatedProfile,
+    };
+  }
+
 
   @Get('/me')
   async getOwnerProfile(@Req() req: Request) {
