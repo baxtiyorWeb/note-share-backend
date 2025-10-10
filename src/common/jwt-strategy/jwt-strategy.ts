@@ -10,10 +10,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!secret) {
       throw new Error('JWT_SECRET_KEY not defined in .env');
     }
-
     const jwtExtractor: () => string | null =
       ExtractJwt.fromAuthHeaderAsBearerToken() as () => string | null;
-
     super({
       jwtFromRequest: jwtExtractor,
       ignoreExpiration: false,
