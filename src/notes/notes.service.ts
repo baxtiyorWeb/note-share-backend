@@ -139,6 +139,60 @@ export class NotesService {
   }
 
 
+  async getExploreNotes(sort?: string, search?: string, page = 1, size = 10) {
+    const query = this.noteRepo
+      .createQueryBuilder('note')
+      .leftJoinAndSelect('note.profile', 'profile')
+      .leftJoinAndSelect('note.likes', 'likes')
+      .leftJoinAndSelect('note.comments', 'comments')
+      .leftJoinAndSelect('note.views', 'views')
+      .where('note.isPublic = :isPublic', { isPublic: true });
+
+    // 🔍 Qidiruv
+    if (search) {
+      query.andWhere(
+        '(note.title ILIKE :search OR note.content ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    // 🔽 Saralash
+    if (sort === 'popular') {
+      query
+        .loadRelationCountAndMap('note.likesCount', 'note.likes')
+        .orderBy('likesCount', 'DESC');
+    } else if (sort === 'commented') {
+      query
+        .loadRelationCountAndMap('note.commentsCount', 'note.comments')
+        .orderBy('commentsCount', 'DESC');
+    } else {
+      query.orderBy('note.createdAt', 'DESC');
+    }
+
+    // 🔢 Count-larni har doim yuklash
+    query
+      .loadRelationCountAndMap('note.likesCount', 'note.likes')
+      .loadRelationCountAndMap('note.commentsCount', 'note.comments')
+      .loadRelationCountAndMap('note.viewsCount', 'note.views');
+
+    // 📄 Pagination logikasi
+    const skip = (page - 1) * size;
+
+    const [notes, total] = await query
+      .skip(skip)
+      .take(size)
+      .getManyAndCount();
+
+    return {
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+      notes,
+    };
+  }
+
+
 
   async update(profileId: number, id: number, dto: UpdateNoteDto) {
     const note = await this.noteRepo.findOne({

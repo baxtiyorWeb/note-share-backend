@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, NotFoundException } from "@nestjs/common";
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, NotFoundException, Query } from "@nestjs/common";
 import { NotesService } from "./notes.service";
 import { JwtAuthGuard } from "../common/jwt-strategy/jwt-guards";
 import { CreateNoteDto } from "./dto/note-create-dto";
@@ -36,6 +36,17 @@ export class NotesController {
     return this.notesService.sharedWithMe(req.user.sub);
   }
 
+  @Get('explore')
+  async getExploreNotes(
+    @Query('sort') sort?: string,
+    @Query('search') search?: string,
+    @Query('page') page: number = 1,
+    @Query('size') size: number = 10,
+  ) {
+    return this.notesService.getExploreNotes(sort, search, page, size);
+  }
+
+
   @Get(":id")
   findOne(@Req() req, @Param("id") id: number) {
 
@@ -69,5 +80,6 @@ export class NotesController {
 
     return this.notesService.shareNote(noteId, targetProfileId, ownerProfile.id);
   }
+
 
 }

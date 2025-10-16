@@ -31,6 +31,9 @@ export class NotesEntity {
   @UpdateDateColumn()
   updatedAt: string;
 
+  @Column({ name: 'is_public', default: true })
+  isPublic: boolean;
+
   @OneToMany(() => NoteViewEntity, (v) => v.note)
   views: NoteViewEntity[];
 

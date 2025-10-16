@@ -17,10 +17,10 @@ import { NoteLikeEntity } from './notes/entities/note-like.entity';
 import { FileEntity } from './file/entities/file.entity';
 import { DashboardController } from './dashboard/dashboard.controller';
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -37,7 +37,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
           NoteViewEntity,
         ],
         synchronize: true,
-        ssl: { rejectUnauthorized: false },
+        // ssl: { rejectUnauthorized: false },
       }),
     }),
 
