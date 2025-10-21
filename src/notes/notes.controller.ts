@@ -46,7 +46,6 @@ export class NotesController {
     return this.notesService.getExploreNotes(sort, search, page, size);
   }
 
-
   @Get(":id")
   findOne(@Req() req, @Param("id") id: number) {
 

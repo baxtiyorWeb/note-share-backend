@@ -124,7 +124,7 @@ export class NoteInteractionsService {
     return this.commentRepo.find({
       where: { note: { id: noteId } },
       relations: ["author"],
-      order: { createdAt: "DESC" },
+      order: { createdAt: "ASC" },
     });
   }
 

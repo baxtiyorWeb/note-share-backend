@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
+import { Repository, In, Brackets } from "typeorm";
 import { NotesEntity } from "./entities/notes.entity";
 import { ProfileEntity } from "./../profile/entities/profile.entity";
 import { CreateNoteDto } from "./dto/note-create-dto";
@@ -139,58 +139,99 @@ export class NotesService {
   }
 
 
-  async getExploreNotes(sort?: string, search?: string, page = 1, size = 10) {
+  async getExploreNotes(sort?: string, search?: string, page = 1, size = 5) {
     const query = this.noteRepo
       .createQueryBuilder('note')
       .leftJoinAndSelect('note.profile', 'profile')
-      .leftJoinAndSelect('note.likes', 'likes')
-      .leftJoinAndSelect('note.comments', 'comments')
-      .leftJoinAndSelect('note.views', 'views')
-      .where('note.isPublic = :isPublic', { isPublic: true });
+      // COUNT larni hisoblash uchun JOINlar
+      .leftJoin('note.likes', 'likes')
+      .leftJoin('note.comments', 'comments')
+      .leftJoin('note.views', 'views')
+      .leftJoin('comments.author', 'commentsAuthor')
+      .where('note.isPublic = :isPublic', { isPublic: true })
+      // GROUP BY COUNT DISTINCT ishlatilganda muhim
+      .groupBy('note.id')
+      .addGroupBy('profile.id')
+      .addGroupBy('commentsAuthor.id');
 
-    // 🔍 Qidiruv
+    // ===================================
+    // 1. Fuzzy search (pg_trgm)
+    // ===================================
     if (search) {
-      query.andWhere(
-        '(note.title ILIKE :search OR note.content ILIKE :search)',
-        { search: `%${search}%` },
-      );
+      // ... qidiruv logikasi o'zgarishsiz qoladi ...
+      const normalized = search.trim().toLowerCase();
+
+      if (normalized.includes('anonymous')) {
+        query.andWhere('note.profileId IS NULL');
+      } else {
+        query.andWhere(
+          new Brackets((qb) => {
+            qb.where(`similarity(LOWER(note.title), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(note.content), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(profile.username, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(profile.firstName, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(profile.lastName, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(comments.text, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(commentsAuthor.username, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(commentsAuthor.firstName, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(commentsAuthor.lastName, '')), :search) > 0.1`)
+          }),
+        ).setParameter('search', normalized);
+      }
     }
 
-    // 🔽 Saralash
+    // ===================================
+    // Postgre bilan mos kelishi uchun AS aliaslari kichik harflarda yoziladi!
+    // ===================================
+    query
+      .addSelect('COUNT(DISTINCT likes.id)', 'likescount')     // KICHIK HARF
+      .addSelect('COUNT(DISTINCT comments.id)', 'commentscount') // KICHIK HARF
+      .addSelect('COUNT(DISTINCT views.id)', 'viewscount');   // KICHIK HARF
+
+
     if (sort === 'popular') {
-      query
-        .loadRelationCountAndMap('note.likesCount', 'note.likes')
-        .orderBy('likesCount', 'DESC');
+      // Tartiblashda ham KICHIK HARF ishlatiladi
+      query.addOrderBy('likescount', 'DESC');
     } else if (sort === 'commented') {
-      query
-        .loadRelationCountAndMap('note.commentsCount', 'note.comments')
-        .orderBy('commentsCount', 'DESC');
-    } else {
-      query.orderBy('note.createdAt', 'DESC');
+      // Tartiblashda ham KICHIK HARF ishlatiladi
+      query.addOrderBy('commentscount', 'DESC');
     }
 
-    // 🔢 Count-larni har doim yuklash
+    if (!sort || sort === 'latest' || search) {
+      query.addOrderBy('note.createdAt', 'DESC');
+    }
+
+
+    // ===================================
+    // 3. Statistikalar (Obyektga map qilish)
+    // Bu qism TypeORM ga yordam beradi, lekin order by dan keyin bo'lishi kerak.
+    // Eslatma: Bu yerda TypeORM-ga map qilish uchun ishlatilgan nom (note.likesCount) Obyekt prop nomi bo'lib qoladi.
+    // Lekin SQL COUNT() ning o'zi `order by` xatosini to'g'irlaydi.
+    // ===================================
     query
       .loadRelationCountAndMap('note.likesCount', 'note.likes')
       .loadRelationCountAndMap('note.commentsCount', 'note.comments')
       .loadRelationCountAndMap('note.viewsCount', 'note.views');
 
-    // 📄 Pagination logikasi
-    const skip = (page - 1) * size;
 
-    const [notes, total] = await query
-      .skip(skip)
-      .take(size)
-      .getManyAndCount();
+    // ===================================
+    // 4. Pagination
+    // ===================================
+    const skip = (Number(page) - 1) * Number(size);
+    const [notes, total] = await query.skip(skip).take(Number(size)).getManyAndCount();
+
+    const totalPages = Math.ceil(total / Number(size));
 
     return {
       total,
-      page,
-      size,
-      totalPages: Math.ceil(total / size),
+      page: Number(page),
+      size: Number(size),
+      totalPages,
+      nextPage: Number(page) < totalPages ? Number(page) + 1 : undefined,
       notes,
     };
   }
+
 
 
 
