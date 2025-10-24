@@ -19,7 +19,9 @@ export class NotesService {
   ) { }
 
   async create(profileId: number, dto: CreateNoteDto) {
-    const profile = await this.profileRepo.findOne({ where: { id: profileId } });
+    const profile = await this.profileRepo.findOne({ where: { user: { id: profileId } } });
+
+    console.log(profile)
 
     if (!profile) {
       throw new NotFoundException("Profile not found");
@@ -27,13 +29,13 @@ export class NotesService {
 
     const note = this.noteRepo.create({
       ...dto,
+      profile
     });
 
     return await this.noteRepo.save(note);
   }
 
   async findAllMyNotes(userId: number) {
-    // 1️⃣ Avval userni profil bilan birga topamiz
     const user = await this.userRepo.findOne({
       where: { id: userId },
       relations: ["profile"],
@@ -47,7 +49,6 @@ export class NotesService {
       throw new NotFoundException("Profile not found for this user");
     }
 
-    // 2️⃣ Endi shu profil ID orqali note larni olamiz
     const notes = await this.noteRepo.find({
       where: { profile: { id: user.profile.id } },
       relations: [
@@ -62,7 +63,6 @@ export class NotesService {
       order: { createdAt: "DESC" },
     });
 
-    // 3️⃣ Qo‘shimcha statistika qo‘shish (ixtiyoriy)
     return notes.map(note => ({
       ...note,
       totalViews: note.views?.length || 0,
@@ -85,7 +85,6 @@ export class NotesService {
       .orderBy("note.createdAt", "DESC")
       .getMany();
 
-    // Har bir note uchun count qo‘shamiz
     return notes.map((note) => ({
       ...note,
       totalLikes: note.likes?.length || 0,
@@ -95,7 +94,6 @@ export class NotesService {
   }
 
   async findOne(userId: number, noteId: number) {
-    // 1. Userni olish
     const user = await this.userRepo.findOne({
       where: { id: userId },
       relations: ['profile'],
@@ -103,7 +101,6 @@ export class NotesService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    // 2. Agar profil yo‘q bo‘lsa — yaratish
     let profile = user.profile;
     if (!profile) {
       profile = this.profileRepo.create({ user });
@@ -113,7 +110,6 @@ export class NotesService {
       await this.userRepo.save(user);
     }
 
-    // 3. Note’ni olish
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
       relations: ['profile', 'sharedWith'],
@@ -121,13 +117,11 @@ export class NotesService {
 
     if (!note) throw new NotFoundException('Note not found');
 
-    // 💡 4. Agar note.profile mavjud bo‘lmasa, uni ham user profili bilan bog‘lab qo‘yamiz
     if (!note.profile) {
       note.profile = profile;
       await this.noteRepo.save(note);
     }
 
-    // 5. Huquqni tekshirish
     const isOwner = note.profile?.id === profile.id;
     const isShared = note.sharedWith.some((p) => p.id === profile.id);
 
@@ -139,26 +133,24 @@ export class NotesService {
   }
 
 
+
+
   async getExploreNotes(sort?: string, search?: string, page = 1, size = 5) {
     const query = this.noteRepo
       .createQueryBuilder('note')
       .leftJoinAndSelect('note.profile', 'profile')
-      // COUNT larni hisoblash uchun JOINlar
+
       .leftJoin('note.likes', 'likes')
       .leftJoin('note.comments', 'comments')
       .leftJoin('note.views', 'views')
       .leftJoin('comments.author', 'commentsAuthor')
       .where('note.isPublic = :isPublic', { isPublic: true })
-      // GROUP BY COUNT DISTINCT ishlatilganda muhim
+
       .groupBy('note.id')
       .addGroupBy('profile.id')
       .addGroupBy('commentsAuthor.id');
 
-    // ===================================
-    // 1. Fuzzy search (pg_trgm)
-    // ===================================
     if (search) {
-      // ... qidiruv logikasi o'zgarishsiz qoladi ...
       const normalized = search.trim().toLowerCase();
 
       if (normalized.includes('anonymous')) {
@@ -180,9 +172,6 @@ export class NotesService {
       }
     }
 
-    // ===================================
-    // Postgre bilan mos kelishi uchun AS aliaslari kichik harflarda yoziladi!
-    // ===================================
     query
       .addSelect('COUNT(DISTINCT likes.id)', 'likescount')     // KICHIK HARF
       .addSelect('COUNT(DISTINCT comments.id)', 'commentscount') // KICHIK HARF
@@ -190,10 +179,8 @@ export class NotesService {
 
 
     if (sort === 'popular') {
-      // Tartiblashda ham KICHIK HARF ishlatiladi
       query.addOrderBy('likescount', 'DESC');
     } else if (sort === 'commented') {
-      // Tartiblashda ham KICHIK HARF ishlatiladi
       query.addOrderBy('commentscount', 'DESC');
     }
 
@@ -202,21 +189,12 @@ export class NotesService {
     }
 
 
-    // ===================================
-    // 3. Statistikalar (Obyektga map qilish)
-    // Bu qism TypeORM ga yordam beradi, lekin order by dan keyin bo'lishi kerak.
-    // Eslatma: Bu yerda TypeORM-ga map qilish uchun ishlatilgan nom (note.likesCount) Obyekt prop nomi bo'lib qoladi.
-    // Lekin SQL COUNT() ning o'zi `order by` xatosini to'g'irlaydi.
-    // ===================================
     query
       .loadRelationCountAndMap('note.likesCount', 'note.likes')
       .loadRelationCountAndMap('note.commentsCount', 'note.comments')
       .loadRelationCountAndMap('note.viewsCount', 'note.views');
 
 
-    // ===================================
-    // 4. Pagination
-    // ===================================
     const skip = (Number(page) - 1) * Number(size);
     const [notes, total] = await query.skip(skip).take(Number(size)).getManyAndCount();
 

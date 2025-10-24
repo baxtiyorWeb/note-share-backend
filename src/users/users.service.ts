@@ -16,7 +16,7 @@ export class UsersService {
 
   async findAllUsers() {
     try {
-      return await this.userRepo.find();
+      return await this.userRepo.find({ relations: ['profile'] });
     } catch (error) {
       console.error('Database error:', error);
       throw new InternalServerErrorException('Foydalanuvchilarni olishda xatolik yuz berdi');

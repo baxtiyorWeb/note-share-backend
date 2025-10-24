@@ -23,6 +23,7 @@ export class NotesController {
 
   @Post()
   create(@Req() req, @Body() dto: CreateNoteDto) {
+    console.log(req.user.sub);
     return this.notesService.create(req.user.sub, dto);
   }
 

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
@@ -20,12 +23,13 @@ import { DashboardController } from './dashboard/dashboard.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
+        url: config.get<string>('DATABASE_URL'),
         entities: [
           UserEntity,
           ProfileEntity,
@@ -35,10 +39,14 @@ import { DashboardController } from './dashboard/dashboard.controller';
           NoteCommentEntity,
           NoteViewEntity,
         ],
-        synchronize: true,
-        // ssl: { rejectUnauthorized: false },
+        synchronize: true, // production’da false qilish tavsiya
+        // ssl: { rejectUnauthorized: false }, // Neon/Railway’da kerak bo‘lishi mumkin
       }),
     }),
+
+    ThrottlerModule.forRoot([
+      { ttl: 60, limit: 10 },
+    ]),
 
     UsersModule,
     AuthModule,
@@ -47,6 +55,11 @@ import { DashboardController } from './dashboard/dashboard.controller';
     DashboardModule,
     FileModule,
   ],
+
   controllers: [DashboardController],
+
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule { }
