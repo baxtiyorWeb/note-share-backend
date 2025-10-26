@@ -182,6 +182,8 @@ export class NotesService {
       query.addOrderBy('likescount', 'DESC');
     } else if (sort === 'commented') {
       query.addOrderBy('commentscount', 'DESC');
+    } else if (sort == "latest") {
+      query.addOrderBy('note.createdAt', 'DESC');
     }
 
     if (!sort || sort === 'latest' || search) {
