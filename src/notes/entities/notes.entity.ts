@@ -25,6 +25,12 @@ export class NotesEntity {
   @Column('text')
   content: string;
 
+  @Column({ type: 'boolean', default: false })
+  is_code_mode: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  code_language: string | null;
+
   @CreateDateColumn()
   createdAt: string;
 
