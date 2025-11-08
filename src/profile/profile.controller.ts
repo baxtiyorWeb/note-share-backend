@@ -53,15 +53,12 @@ export class ProfileController {
       throw new Error('Unauthorized: user ID not found in token');
     }
 
-    // 1️⃣ Faylni Vercel Blob ga yuklash
     const coverUrl = await this.uploadService.uploadFile(file);
 
-    // 2️⃣ Profile jadvaliga URL yozish
     const updatedProfile = await this.profileService.updateProfile(id, {
       coverImage: coverUrl,
     });
 
-    // 3️⃣ Natijani qaytarish
     return {
       message: 'Cover image uploaded successfully ✅',
       coverUrl,
@@ -83,6 +80,13 @@ export class ProfileController {
   @Get(':username')
   async getByUsername(@Param('username') username: string) {
     return this.profileService.getByUsername(username);
+  }
+
+
+  @Get('by-profilename/:profilename')
+  async getByUserProfileName(@Param('profilename') profilename: string) {
+    console.log(profilename);
+    return this.profileService.getUserProfile(profilename);
   }
 
   @Put('/update')

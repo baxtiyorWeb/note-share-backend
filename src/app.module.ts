@@ -19,6 +19,8 @@ import { NoteViewEntity } from './notes/entities/note-view.entity';
 import { NoteLikeEntity } from './notes/entities/note-like.entity';
 import { FileEntity } from './file/entities/file.entity';
 import { DashboardController } from './dashboard/dashboard.controller';
+import { FollowModule } from './follow/follow.module';
+import { FollowEntity } from './follow/entities/follow.entity';
 
 @Module({
   imports: [
@@ -38,7 +40,9 @@ import { DashboardController } from './dashboard/dashboard.controller';
           NoteLikeEntity,
           NoteCommentEntity,
           NoteViewEntity,
+          FollowEntity
         ],
+        autoLoadEntities: true,
         synchronize: true, // production’da false qilish tavsiya
         // ssl: { rejectUnauthorized: false }, // Neon/Railway’da kerak bo‘lishi mumkin
       }),
@@ -54,6 +58,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
     NotesModule,
     DashboardModule,
     FileModule,
+    FollowModule,
   ],
 
   controllers: [DashboardController],

@@ -1,8 +1,15 @@
-import { Exclude } from 'class-transformer';
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
-import { ProfileEntity } from './../../profile/entities/profile.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  OneToMany,
+  JoinColumn,
+} from "typeorm";
+import { ProfileEntity } from "../../profile/entities/profile.entity";
+import { FollowEntity } from "../../follow/entities/follow.entity";
 
-@Entity()
+@Entity("users")
 export class UserEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -10,14 +17,15 @@ export class UserEntity {
   @Column({ unique: true })
   email: string;
 
-  @Exclude()
   @Column()
   password: string;
 
-  @OneToOne(() => ProfileEntity, (profile) => profile.user, {
-    cascade: true,
-    onDelete: 'CASCADE',
-  })
+  @OneToOne(() => ProfileEntity, (p) => p.user, { cascade: true })
   @JoinColumn()
   profile: ProfileEntity;
+  @OneToMany(() => FollowEntity, (follow) => follow.following)
+  followers: FollowEntity[];
+
+  @OneToMany(() => FollowEntity, (follow) => follow.follower)
+  following: FollowEntity[];
 }

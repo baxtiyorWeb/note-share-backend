@@ -7,6 +7,7 @@ import { NoteViewEntity } from './../notes/entities/note-view.entity';
 import { NoteLikeEntity } from './../notes/entities/note-like.entity';
 import { NoteCommentEntity } from './../notes/entities/note-comment.entity';
 import { ProfileEntity } from './../profile/entities/profile.entity';
+import { FollowEntity } from './../follow/entities/follow.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ProfileEntity } from './../profile/entities/profile.entity';
       NoteLikeEntity,
       NoteCommentEntity,
       ProfileEntity,
+      FollowEntity
     ]),
   ],
   controllers: [DashboardController],

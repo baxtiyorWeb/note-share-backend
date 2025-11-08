@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, BeforeInsert, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, BeforeInsert, OneToMany, JoinColumn } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { UserEntity } from './../../users/entities/user.entity';
 import { NotesEntity } from './../../notes/entities/notes.entity';
@@ -23,8 +23,12 @@ export class ProfileEntity {
   @Column({ nullable: true })
   coverImage?: string;
 
-  @OneToOne(() => UserEntity, (user) => user.profile)
+  @OneToOne(() => UserEntity, (user) => user.profile, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })   // <-- bu ustun DB da boʻlishi shart
   user: UserEntity;
+
+  @Column({ nullable: true })
+  userId?: number;
 
   @OneToMany(() => NotesEntity, (note) => note.profile, { cascade: true })
   notes: NotesEntity[];

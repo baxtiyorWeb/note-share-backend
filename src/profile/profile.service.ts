@@ -15,32 +15,87 @@ export class ProfileService {
 
 
   async getOwnerProfile(id: number) {
+    if (!id) throw new BadRequestException('ID is required');
 
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: [
+        'profile',
+        'followers',
+        'followers.follower',
+        'followers.follower.profile',
+        'following',
+        'following.following',
+        'following.following.profile',
+        'profile.notes',
+      ],
+    });
 
-    try {
-      if (id == null) {
-        throw new BadRequestException("id not getting");
-      }
+    if (!user) throw new NotFoundException('User not found');
 
-      const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
-
-      if (!user) {
-        throw new NotFoundException("User not found");
-      }
-
-      if (!user.profile) {
-
-        const newProfile = this.profileRepo.create({ user });
-        await this.profileRepo.save(newProfile)
-
-        user.profile = newProfile;
-        await this.userRepo.save(user)
-      }
-      return user;
-    } catch (error) {
-      throw new InternalServerErrorException('User not loaded', error);
+    // Agar profil yo'q bo‘lsa, yaratamiz
+    if (!user.profile) {
+      const newProfile = this.profileRepo.create({
+        user,
+        userId: user.id,
+        username: `user_${user.id}`,
+        firstName: 'User',
+        lastName: 'Name',
+      });
+      user.profile = await this.profileRepo.save(newProfile);
+      await this.userRepo.save(user);
     }
+
+    // 💡 CLEAN JSON STRUCTURE
+    const cleaned = {
+      id: user.id,
+      email: user.email,
+      profile: user.profile && {
+        id: user.profile.id,
+        firstName: user.profile.firstName,
+        lastName: user.profile.lastName,
+        username: user.profile.username,
+        avatar: user.profile.avatar,
+        coverImage: user.profile.coverImage,
+        notes: user.profile.notes?.map((n) => ({
+          id: n.id,
+          title: n.title,
+          content: n.content,
+          createdAt: n.createdAt,
+          updatedAt: n.updatedAt,
+          isPublic: n.isPublic,
+        })),
+      },
+      followers:
+        user.followers?.map((f) => ({
+          id: f.id,
+          createdAt: f.createdAt,
+          profile: f.follower?.profile && {
+            id: f.follower.profile.id,
+            username: f.follower.profile.username,
+            firstName: f.follower.profile.firstName,
+            lastName: f.follower.profile.lastName,
+            avatar: f.follower.profile.avatar,
+          },
+        })) ?? [],
+      following:
+        user.following?.map((f) => ({
+          id: f.id,
+          createdAt: f.createdAt,
+          profile: f.following?.profile && {
+            id: f.following.profile.id,
+            username: f.following.profile.username,
+            firstName: f.following.profile.firstName,
+            lastName: f.following.profile.lastName,
+            avatar: f.following.profile.avatar,
+          },
+        })) ?? [],
+    };
+
+    return cleaned;
   }
+
+
 
   async getByUsername(username: string) {
     const profile = await this.profileRepo.findOne({
@@ -54,6 +109,37 @@ export class ProfileService {
 
     return profile;
   }
+
+  async getUserProfile(username: string, requesterId?: number) {
+    const profile = await this.profileRepo.findOne({
+      where: { username },
+      relations: ['user', 'notes'],
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Foydalanuvchi topilmadi');
+    }
+
+    const isOwner = requesterId === profile.user.id;
+
+    const filteredNotes = profile.notes.filter(
+      (note) => isOwner || note.isPublic === true,
+    );
+
+    return {
+      id: profile.id,
+      username: profile.username,
+      avatar: profile.avatar,
+      coverImage: profile.coverImage,
+      user: {
+        id: profile.user.id,
+        username: profile.username,
+        email: isOwner ? profile.user.email : undefined,
+      },
+      notes: filteredNotes,
+    };
+  }
+
 
 
   async updateProfile(id: number, profileData: Partial<ProfileEntity>) {

@@ -51,6 +51,8 @@ export class NoteInteractionsController {
     @Param("noteId", ParseIntPipe) noteId: number,
     @Body("text") text: string,
   ) {
+    console.log(req.user);
+
     return this.service.addComment(noteId, req.user.sub, text);
   }
 

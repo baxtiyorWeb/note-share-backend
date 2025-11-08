@@ -34,7 +34,7 @@ export class NoteInteractionsService {
     const note = await this.noteRepo.findOne({ where: { id: noteId } });
     if (!note) throw new NotFoundException("Note not found");
 
-    const profile = await this.profileRepo.findOne({ where: { id: profileId } });
+    const profile = await this.profileRepo.findOne({ where: { user: { id: profileId } } });
     if (!profile) throw new NotFoundException("Profile not found");
 
     const exists = await this.viewRepo.findOne({
@@ -60,7 +60,7 @@ export class NoteInteractionsService {
     const note = await this.noteRepo.findOne({ where: { id: noteId } });
     if (!note) throw new NotFoundException("Note not found");
 
-    const profile = await this.profileRepo.findOne({ where: { id: profileId } });
+    const profile = await this.profileRepo.findOne({ where: { user: { id: profileId } } });
     if (!profile) throw new NotFoundException("Profile not found");
 
     const existing = await this.likeRepo.findOne({
@@ -89,10 +89,11 @@ export class NoteInteractionsService {
   }
 
   async addComment(noteId: number, profileId: number, text: string) {
+
     const note = await this.noteRepo.findOne({ where: { id: noteId } });
     if (!note) throw new NotFoundException("Note not found");
 
-    const profile = await this.profileRepo.findOne({ where: { id: profileId } });
+    const profile = await this.profileRepo.findOne({ where: { user: { id: profileId } } });
     if (!profile) throw new NotFoundException("Profile not found");
 
     const comment = this.commentRepo.create({

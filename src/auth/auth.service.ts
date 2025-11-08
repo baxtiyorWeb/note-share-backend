@@ -45,27 +45,25 @@ export class AuthService {
     };
   }
 
-  // 🟡 LOGIN
   async login(email: string, password: string) {
     const user = await this.userRepo.findOne({ where: { email } });
+    console.log("🧩 Email:", email);
+    console.log("🧩 User found:", user);
+
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    console.log(user);
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("🧩 Plain password:", password);
+    console.log("🧩 Hashed password:", user.password);
+    console.log("🧩 isPasswordValid:", isPasswordValid);
+
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
     const tokens = await this.generateTokens(user.id, user.email);
-
-
-    return {
-      message: 'Login successful',
-      ...tokens,
-      user: {
-        id: user.id,
-        email: user.email,
-      },
-    };
+    return { message: "Login successful", ...tokens };
   }
+
+
 
   // 🔄 REFRESH TOKEN
   async refreshToken(refreshToken: string) {

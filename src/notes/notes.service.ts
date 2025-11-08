@@ -20,18 +20,13 @@ export class NotesService {
 
   async create(profileId: number, dto: CreateNoteDto) {
     const profile = await this.profileRepo.findOne({ where: { user: { id: profileId } } });
-
-    console.log(profile)
-
     if (!profile) {
       throw new NotFoundException("Profile not found");
     }
-
     const note = this.noteRepo.create({
       ...dto,
       profile
     });
-
     return await this.noteRepo.save(note);
   }
 
@@ -244,8 +239,6 @@ export class NotesService {
     });
     if (!note) throw new NotFoundException("Note not found");
 
-    console.log(note?.profile?.id);
-    console.log(profile?.id);
 
     if (note.profile.id !== profile?.id) {
       throw new ForbiddenException("You cannot delete this note");
