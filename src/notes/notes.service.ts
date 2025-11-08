@@ -210,18 +210,23 @@ export class NotesService {
 
 
 
-  async update(profileId: number, id: number, dto: UpdateNoteDto) {
+  async update(userId: number, id: number, dto: UpdateNoteDto) {
     const note = await this.noteRepo.findOne({
       where: { id },
-      relations: ["profile"],
+      relations: ["profile", "profile.user"],
     });
+
     if (!note) throw new NotFoundException("Note not found");
-    if (note.profile.id !== profileId)
+
+    if (note.profile.user.id !== userId)
       throw new ForbiddenException("You cannot edit this note");
 
     Object.assign(note, dto);
     return this.noteRepo.save(note);
   }
+
+
+
   async remove(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
