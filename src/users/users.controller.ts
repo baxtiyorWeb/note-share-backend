@@ -28,6 +28,19 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 export class UsersController {
   constructor(private readonly userService: UsersService) { }
 
+  @UseGuards(JwtAuthGuard)
+  @Post('onesignal')
+  async savePlayerId(@Req() req, @Body('playerId') playerId: string) {
+    const userId = req.user?.sub;
+    if (!playerId) throw new BadRequestException('Player ID kiritilmadi');
+    const user = await this.userService.savePlayerId(userId, playerId);
+    return {
+      message: '✅ Player ID saqlandi',
+      playerIds: user.onesignal_player_ids,
+    };
+  }
+
+
   @Post('save-onesignal-id')
   async saveOneSignalId(@Body() { playerId }: { playerId: string }, @Req() req) {
     const userId = req.user.sub;

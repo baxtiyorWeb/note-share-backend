@@ -1,43 +1,44 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as OneSignal from 'onesignal-node';
 
 @Injectable()
 export class OneSignalService {
   private client: OneSignal.Client;
+  private readonly logger = new Logger(OneSignalService.name);
 
   constructor(private configService: ConfigService) {
     this.client = new OneSignal.Client(
-      this.configService.get<string>('ONESIGNAL_APP_ID') as string,
-      this.configService.get<string>('ONESIGNAL_REST_API_KEY') as string,
+      this.configService.get<string>('ONESIGNAL_APP_ID')!,
+      this.configService.get<string>('ONESIGNAL_REST_API_KEY')!,
     );
   }
 
   async sendPushNotification(
-    tokens: string[],
+    playerIds: string[],
     title: string,
-    body: string,
+    message: string,
     data?: any,
   ) {
-    if (!tokens || tokens.length === 0)
-      return { success: false, message: 'No tokens provided' };
+    if (!playerIds || playerIds.length === 0) {
+      this.logger.warn('⚠️ Player ID mavjud emas.');
+      return;
+    }
 
-    const message = {
-      contents: { en: body },
+    const notification = {
+      app_id: this.configService.get<string>('ONESIGNAL_APP_ID'),
+      include_player_ids: playerIds,
+      contents: { en: message },
       headings: { en: title },
-      include_player_ids: tokens,
       data,
-      ios_badgeType: 'Increase',
-      ios_badgeCount: 1,
     };
 
     try {
-      const response = await this.client.createNotification(message);
-      console.log('✅ OneSignal push yuborildi:', response.body);
-      return { success: true, response: response.body };
+      const response = await this.client.createNotification(notification);
+      this.logger.log(`✅ Push yuborildi: ${JSON.stringify(response.body)}`);
+      return response.body;
     } catch (error) {
-      console.error('❌ OneSignal xatosi:', error);
-      return { success: false, error };
+      this.logger.error('❌ Push yuborishda xatolik:', error);
     }
   }
 }

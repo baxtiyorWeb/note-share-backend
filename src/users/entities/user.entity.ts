@@ -20,12 +20,13 @@ export class UserEntity {
   @Column()
   password: string;
 
-  @Column('simple-array', { nullable: true })
+  @Column('text', { array: true, default: [] })
   onesignal_player_ids: string[];
 
   @OneToOne(() => ProfileEntity, (p) => p.user, { cascade: true })
   @JoinColumn()
   profile: ProfileEntity;
+
   @OneToMany(() => FollowEntity, (follow) => follow.following)
   followers: FollowEntity[];
 

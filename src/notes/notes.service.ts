@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In, Brackets } from "typeorm";
+import { Repository, Brackets } from "typeorm";
 import { NotesEntity } from "./entities/notes.entity";
-import { ProfileEntity } from "./../profile/entities/profile.entity";
+import { ProfileEntity } from "../profile/entities/profile.entity";
 import { CreateNoteDto } from "./dto/note-create-dto";
 import { UpdateNoteDto } from "./dto/not-update-dto";
-import { UserEntity } from "./../users/entities/user.entity";
+import { UserEntity } from "../users/entities/user.entity";
 import { ReminderService } from "./reminder.service";
 
 @Injectable()
@@ -20,29 +26,27 @@ export class NotesService {
     private readonly reminderService: ReminderService,
   ) { }
 
-  async create(profileId: number, dto: CreateNoteDto) {
+  async create(userId: number, dto: CreateNoteDto) {
     const profile = await this.profileRepo.findOne({
-      where: { user: { id: profileId } },
-      relations: ['user'],
+      where: { user: { id: userId } },
+      relations: ["user"],
     });
-    if (!profile) throw new NotFoundException('Profile not found');
+    if (!profile) throw new NotFoundException("Profile not found");
 
     const note = this.noteRepo.create({ ...dto, profile });
-    const savedNote = await this.noteRepo.save(note);
+    const saved = await this.noteRepo.save(note);
 
-    // Reminder o'rnatish
     if (dto.reminder_at) {
       await this.reminderService.scheduleReminder(
-        savedNote.id,
+        saved.id,
         new Date(dto.reminder_at),
-        savedNote.title || 'No title',
-        profile.user.id, // userId yuboriladi
+        saved.title || "No title",
+        profile.user.id,
       );
     }
 
-    return savedNote;
+    return saved;
   }
-
 
   async findAllMyNotes(userId: number) {
     const user = await this.userRepo.findOne({
@@ -50,13 +54,8 @@ export class NotesService {
       relations: ["profile"],
     });
 
-    if (!user) {
-      throw new NotFoundException("User not found");
-    }
-
-    if (!user.profile) {
-      throw new NotFoundException("Profile not found for this user");
-    }
+    if (!user) throw new NotFoundException("User not found");
+    if (!user.profile) throw new NotFoundException("Profile not found for user");
 
     const notes = await this.noteRepo.find({
       where: { profile: { id: user.profile.id } },
@@ -72,7 +71,7 @@ export class NotesService {
       order: { createdAt: "DESC" },
     });
 
-    return notes.map(note => ({
+    return notes.map((note) => ({
       ...note,
       totalViews: note.views?.length || 0,
       totalLikes: note.likes?.length || 0,
@@ -80,6 +79,71 @@ export class NotesService {
     }));
   }
 
+  async getExploreNotes(
+    sort?: string,
+    search?: string,
+    page = 1,
+    size = 10,
+  ) {
+    const query = this.noteRepo
+      .createQueryBuilder("note")
+      .leftJoinAndSelect("note.profile", "profile")
+      .leftJoin("note.likes", "likes")
+      .leftJoin("note.comments", "comments")
+      .leftJoin("note.views", "views")
+      .leftJoin("comments.author", "commentAuthor")
+      .where("note.isPublic = :isPublic", { isPublic: true })
+      .groupBy("note.id")
+      .addGroupBy("profile.id")
+      .addGroupBy("commentAuthor.id");
+
+    if (search) {
+      const normalized = search.trim().toLowerCase();
+
+      if (normalized.includes("anonymous")) {
+        query.andWhere("note.profileId IS NULL");
+      } else {
+        query.andWhere(
+          new Brackets((qb) => {
+            qb.where(`similarity(LOWER(note.title), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(note.content), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(profile.username, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(profile.firstName, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(profile.lastName, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(commentAuthor.username, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(commentAuthor.firstName, '')), :search) > 0.1`)
+              .orWhere(`similarity(LOWER(COALESCE(commentAuthor.lastName, '')), :search) > 0.1`);
+          }),
+        ).setParameter("search", normalized);
+      }
+    }
+
+    query
+      .addSelect("COUNT(DISTINCT likes.id)", "likesCount")
+      .addSelect("COUNT(DISTINCT comments.id)", "commentsCount")
+      .addSelect("COUNT(DISTINCT views.id)", "viewsCount");
+
+    if (sort === "popular") {
+      query.addOrderBy("likesCount", "DESC");
+    } else if (sort === "commented") {
+      query.addOrderBy("commentsCount", "DESC");
+    } else {
+      query.addOrderBy("note.createdAt", "DESC");
+    }
+
+    const skip = (page - 1) * size;
+    const [notes, total] = await query.skip(skip).take(size).getManyAndCount();
+    const totalPages = Math.ceil(total / size);
+
+    return {
+      total,
+      page,
+      size,
+      totalPages,
+      nextPage: page < totalPages ? page + 1 : null,
+      notes,
+    };
+  }
 
 
   async sharedWithMe(profileId: number) {
@@ -105,166 +169,54 @@ export class NotesService {
   async findOne(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['profile'],
+      relations: ["profile"],
     });
-
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
 
     let profile = user.profile;
     if (!profile) {
       profile = this.profileRepo.create({ user });
       await this.profileRepo.save(profile);
-
-      user.profile = profile;
-      await this.userRepo.save(user);
     }
 
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
-      relations: ['profile', 'sharedWith'],
+      relations: ["profile", "sharedWith"],
     });
-
-    if (!note) throw new NotFoundException('Note not found');
-
-    if (!note.profile) {
-      note.profile = profile;
-      await this.noteRepo.save(note);
-    }
+    if (!note) throw new NotFoundException("Note not found");
 
     const isOwner = note.profile?.id === profile.id;
     const isShared = note.sharedWith.some((p) => p.id === profile.id);
-
-    if (!isOwner && !isShared) {
-      throw new ForbiddenException('You do not have access to this note');
-    }
+    if (!isOwner && !isShared)
+      throw new ForbiddenException("You do not have access to this note");
 
     return note;
   }
 
-
-
-
-  async getExploreNotes(sort?: string, search?: string, page = 1, size = 5) {
-    const query = this.noteRepo
-      .createQueryBuilder('note')
-      .leftJoinAndSelect('note.profile', 'profile')
-
-      .leftJoin('note.likes', 'likes')
-      .leftJoin('note.comments', 'comments')
-      .leftJoin('note.views', 'views')
-      .leftJoin('comments.author', 'commentsAuthor')
-      .where('note.isPublic = :isPublic', { isPublic: true })
-
-      .groupBy('note.id')
-      .addGroupBy('profile.id')
-      .addGroupBy('commentsAuthor.id');
-
-    if (search) {
-      const normalized = search.trim().toLowerCase();
-
-      if (normalized.includes('anonymous')) {
-        query.andWhere('note.profileId IS NULL');
-      } else {
-        query.andWhere(
-          new Brackets((qb) => {
-            qb.where(`similarity(LOWER(note.title), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(note.content), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(profile.username, '')), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(profile.firstName, '')), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(profile.lastName, '')), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(comments.text, '')), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(commentsAuthor.username, '')), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(commentsAuthor.firstName, '')), :search) > 0.1`)
-              .orWhere(`similarity(LOWER(COALESCE(commentsAuthor.lastName, '')), :search) > 0.1`)
-          }),
-        ).setParameter('search', normalized);
-      }
-    }
-
-    query
-      .addSelect('COUNT(DISTINCT likes.id)', 'likescount')     // KICHIK HARF
-      .addSelect('COUNT(DISTINCT comments.id)', 'commentscount') // KICHIK HARF
-      .addSelect('COUNT(DISTINCT views.id)', 'viewscount');   // KICHIK HARF
-
-
-    if (sort === 'popular') {
-      query.addOrderBy('likescount', 'DESC');
-    } else if (sort === 'commented') {
-      query.addOrderBy('commentscount', 'DESC');
-    } else if (sort == "latest") {
-      query.addOrderBy('note.createdAt', 'DESC');
-    }
-
-    if (!sort || sort === 'latest' || search) {
-      query.addOrderBy('note.createdAt', 'DESC');
-    }
-
-
-    query
-      .loadRelationCountAndMap('note.likesCount', 'note.likes')
-      .loadRelationCountAndMap('note.commentsCount', 'note.comments')
-      .loadRelationCountAndMap('note.viewsCount', 'note.views');
-
-
-    const skip = (Number(page) - 1) * Number(size);
-    const [notes, total] = await query.skip(skip).take(Number(size)).getManyAndCount();
-
-    const totalPages = Math.ceil(total / Number(size));
-
-    return {
-      total,
-      page: Number(page),
-      size: Number(size),
-      totalPages,
-      nextPage: Number(page) < totalPages ? Number(page) + 1 : undefined,
-      notes,
-    };
-  }
-
-
-
-
-  async update(userId: number, id: number, dto: UpdateNoteDto) {
+  async update(userId: number, noteId: number, dto: UpdateNoteDto) {
     const note = await this.noteRepo.findOne({
-      where: { id },
-      relations: ['profile', 'profile.user'],
+      where: { id: noteId },
+      relations: ["profile", "profile.user"],
     });
-
-    if (!note) throw new NotFoundException('Note not found');
+    if (!note) throw new NotFoundException("Note not found");
     if (note.profile.user.id !== userId)
-      throw new ForbiddenException('You cannot edit this note');
+      throw new ForbiddenException("You cannot edit this note");
 
-    const oldReminderAt = note.reminder_at;
+    const oldReminder = note.reminder_at?.toISOString();
     Object.assign(note, dto);
     const updated = await this.noteRepo.save(note);
 
-    const newReminderAt = dto.reminder_at ? new Date(dto.reminder_at) : null;
-
-    // Agar reminder o'zgargan yoki o'chirilgan bo'lsa
-    if (
-      oldReminderAt?.getTime() !== newReminderAt?.getTime() ||
-      (!oldReminderAt && newReminderAt) ||
-      (oldReminderAt && !newReminderAt)
-    ) {
-      // Eski reminder ni o'chirish
-      this.reminderService.cancelReminder(updated.id);
-
-      // Yangi reminder ni o'rnatish (agar mavjud bo'lsa)
-      if (newReminderAt) {
-        await this.reminderService.scheduleReminder(
-          updated.id,
-          newReminderAt,
-          updated.title || 'No title',
-          note.profile.user.id, // userId
-        );
-      }
+    if (dto.reminder_at && dto.reminder_at !== oldReminder) {
+      await this.reminderService.scheduleReminder(
+        updated.id,
+        new Date(dto.reminder_at),
+        updated.title || "No title",
+        note.profile.user.id,
+      );
     }
 
     return updated;
   }
-
-
-
 
   async remove(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
@@ -273,85 +225,43 @@ export class NotesService {
     });
     if (!user) throw new NotFoundException("User not found");
 
-    const profile = await this.profileRepo.findOne({
-      where: { user: { id: userId } },
-    });
-
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
       relations: ["profile"],
     });
     if (!note) throw new NotFoundException("Note not found");
-
-
-    if (note.profile.id !== profile?.id) {
+    if (note.profile.id !== user.profile.id)
       throw new ForbiddenException("You cannot delete this note");
-    }
 
     return this.noteRepo.remove(note);
   }
 
-
-  async shareNote(
-    noteId: number,
-    targetProfileId: number,
-    ownerProfileId: number,
-  ) {
+  async shareNote(noteId: number, targetProfileId: number, ownerProfileId: number) {
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
-      relations: ['profile', 'sharedWith'],
+      relations: ["profile", "sharedWith"],
     });
+    if (!note) throw new NotFoundException("Note not found");
+    if (note.profile.id !== ownerProfileId)
+      throw new ForbiddenException("You can only share your own notes");
 
-    if (!note) {
-      throw new NotFoundException('Note not found');
-    }
-
-    if (note.profile.id !== ownerProfileId) {
-      throw new ForbiddenException('You can only share your own notes');
-    }
-
-    const filteredSharedWith = note.sharedWith.filter(
-      (p) => p.id !== note.profile.id,
-    );
-
-    if (filteredSharedWith.length !== note.sharedWith.length) {
-      note.sharedWith = filteredSharedWith;
-      await this.noteRepo.save(note);
-      console.log('⚙️ Auto-cleaned self-shared note for profile:', note.profile.id);
-    }
-
-    if (note.profile.id === targetProfileId) {
-      throw new BadRequestException('You cannot share a note with yourself');
-    }
+    if (note.sharedWith.some((p) => p.id === targetProfileId))
+      throw new ConflictException("Note already shared with this profile");
 
     const targetProfile = await this.profileRepo.findOne({
       where: { id: targetProfileId },
     });
-
-    if (!targetProfile) {
-      throw new NotFoundException('Target profile not found');
-    }
-
-    const alreadyShared = note.sharedWith.some(
-      (p) => p.id === targetProfile.id,
-    );
-
-    if (alreadyShared) {
-      throw new ConflictException('Note already shared with this profile');
-    }
+    if (!targetProfile) throw new NotFoundException("Target profile not found");
 
     note.sharedWith.push(targetProfile);
     await this.noteRepo.save(note);
 
     return {
-      message: 'Note shared successfully',
+      message: "Note shared successfully",
       sharedWith: note.sharedWith.map((p) => ({
         id: p.id,
         username: p.username,
       })),
     };
   }
-
-
-
 }

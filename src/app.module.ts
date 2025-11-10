@@ -22,6 +22,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
 import { FollowModule } from './follow/follow.module';
 import { FollowEntity } from './follow/entities/follow.entity';
 import { OneSignalService } from './onesignal/onesignal.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -52,6 +53,8 @@ import { OneSignalService } from './onesignal/onesignal.service';
     ThrottlerModule.forRoot([
       { ttl: 60, limit: 10 },
     ]),
+
+    ScheduleModule.forRoot(),
 
     UsersModule,
     AuthModule,

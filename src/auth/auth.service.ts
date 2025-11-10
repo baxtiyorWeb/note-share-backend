@@ -20,6 +20,14 @@ export class AuthService {
 
   // 🟢 REGISTER
   async register(email: string, password: string, confirmPassword: string) {
+
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
+      throw new BadRequestException(
+        'Faqat @gmail.com email orqali ro‘yxatdan o‘tish mumkin!',
+      );
+    }
+
+
     if (password !== confirmPassword) {
       throw new BadRequestException('Passwords do not match');
     }
@@ -47,15 +55,19 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.userRepo.findOne({ where: { email } });
-    console.log("🧩 Email:", email);
-    console.log("🧩 User found:", user);
+
+
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
+      throw new BadRequestException(
+        'Faqat @gmail.com email orqali kirish mumkin!',
+      );
+    }
+
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log("🧩 Plain password:", password);
-    console.log("🧩 Hashed password:", user.password);
-    console.log("🧩 isPasswordValid:", isPasswordValid);
+
 
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 

@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, NotFoundException, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  ParseIntPipe,
+  NotFoundException,
+  Query,
+} from "@nestjs/common";
 import { NotesService } from "./notes.service";
 import { JwtAuthGuard } from "../common/jwt-strategy/jwt-guards";
 import { CreateNoteDto } from "./dto/note-create-dto";
@@ -9,9 +22,7 @@ import { ProfileEntity } from "./../profile/entities/profile.entity";
 import { Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 
-
-
-@Controller('notes')
+@Controller("notes")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 export class NotesController {
@@ -23,7 +34,6 @@ export class NotesController {
 
   @Post()
   create(@Req() req, @Body() dto: CreateNoteDto) {
-    console.log(req.user.sub);
     return this.notesService.create(req.user.sub, dto);
   }
 
@@ -32,54 +42,55 @@ export class NotesController {
     return this.notesService.findAllMyNotes(req.user.sub);
   }
 
-  @Get('/shared-with-me')
+  @Get("shared-with-me")
   sharedWithMe(@Req() req) {
     return this.notesService.sharedWithMe(req.user.sub);
   }
 
-  @Get('explore')
+  @Get("explore")
   async getExploreNotes(
-    @Query('sort') sort?: string,
-    @Query('search') search?: string,
-    @Query('page') page: number = 1,
-    @Query('size') size: number = 10,
+    @Query("sort") sort?: string,
+    @Query("search") search?: string,
+    @Query("page") page: number = 1,
+    @Query("size") size: number = 10,
   ) {
     return this.notesService.getExploreNotes(sort, search, page, size);
   }
 
   @Get(":id")
-  findOne(@Req() req, @Param("id") id: number) {
-
+  findOne(@Req() req, @Param("id", ParseIntPipe) id: number) {
     return this.notesService.findOne(req.user.sub, id);
   }
 
   @Patch(":id")
-  update(@Req() req, @Param("id") id: number, @Body() dto: UpdateNoteDto) {
+  update(
+    @Req() req,
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateNoteDto,
+  ) {
     return this.notesService.update(req.user.sub, id, dto);
   }
 
   @Delete(":id")
-  remove(@Req() req, @Param("id") id: number) {
+  remove(@Req() req, @Param("id", ParseIntPipe) id: number) {
     return this.notesService.remove(req.user.sub, id);
   }
 
-  @Post(':id/share')
+  @Post(":id/share")
   async shareNote(
-    @Param('id', ParseIntPipe) noteId: number,
-    @Body('targetProfileId', ParseIntPipe) targetProfileId: number,
+    @Param("id", ParseIntPipe) noteId: number,
+    @Body("targetProfileId", ParseIntPipe) targetProfileId: number,
     @Req() req: Request,
   ) {
-    const ownerId = req.user?.['sub']; // token orqali foydalanuvchi ID
+    const ownerId = req.user?.["sub"];
     const ownerProfile = await this.profileRepo.findOne({
       where: { user: { id: ownerId } },
     });
 
     if (!ownerProfile) {
-      throw new NotFoundException('Profile not found for current user');
+      throw new NotFoundException("Profile not found for current user");
     }
 
     return this.notesService.shareNote(noteId, targetProfileId, ownerProfile.id);
   }
-
-
 }
