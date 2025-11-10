@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OneSignal from 'onesignal-node';
+import * as OneSignal from 'onesignal-node'; // ✅ MUHIM: default import emas, * as
 
 @Injectable()
 export class OneSignalService {
@@ -8,34 +8,35 @@ export class OneSignalService {
 
   constructor(private configService: ConfigService) {
     this.client = new OneSignal.Client(
-      this.configService.get('ONESIGNAL_APP_ID') as string,
-      this.configService.get('ONESIGNAL_REST_API_KEY') as string,
+      this.configService.get<string>('ONESIGNAL_APP_ID') as string,
+      this.configService.get<string>('ONESIGNAL_REST_API_KEY') as string,
     );
   }
 
   async sendPushNotification(
-    tokens: string[], // User FCM/HMS tokens (OneSignal orqali)
+    tokens: string[],
     title: string,
     body: string,
-    data?: any, // { noteId: '27', type: 'reminder' }
+    data?: any,
   ) {
-    if (!tokens.length) return { success: false, message: 'No tokens' };
+    if (!tokens || tokens.length === 0)
+      return { success: false, message: 'No tokens provided' };
 
     const message = {
-      contents: { en: body }, // O'zbekcha uchun 'uz' qo'shing
+      contents: { en: body },
       headings: { en: title },
-      include_player_ids: tokens, // Individual tokens
-      data: data, // Deep link uchun
+      include_player_ids: tokens,
+      data,
       ios_badgeType: 'Increase',
       ios_badgeCount: 1,
     };
 
     try {
       const response = await this.client.createNotification(message);
-      console.log('OneSignal Push yuborildi:', response.body);
+      console.log('✅ OneSignal push yuborildi:', response.body);
       return { success: true, response: response.body };
     } catch (error) {
-      console.error('OneSignal xatosi:', error);
+      console.error('❌ OneSignal xatosi:', error);
       return { success: false, error };
     }
   }

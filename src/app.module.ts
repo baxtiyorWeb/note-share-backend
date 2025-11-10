@@ -21,7 +21,7 @@ import { FileEntity } from './file/entities/file.entity';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { FollowModule } from './follow/follow.module';
 import { FollowEntity } from './follow/entities/follow.entity';
-import { OnesignalService } from './onesignal/onesignal.service';
+import { OneSignalService } from './onesignal/onesignal.service';
 
 @Module({
   imports: [
@@ -66,7 +66,7 @@ import { OnesignalService } from './onesignal/onesignal.service';
 
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    OnesignalService,
+    OneSignalService,
   ],
 })
 export class AppModule { }
