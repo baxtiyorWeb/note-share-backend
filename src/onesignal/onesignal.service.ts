@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as OneSignal from 'onesignal-node'; // ✅ MUHIM: default import emas, * as
+import * as OneSignal from 'onesignal-node';
 
 @Injectable()
 export class OneSignalService {

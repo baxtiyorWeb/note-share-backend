@@ -12,7 +12,8 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ReminderService } from "./reminder.service";
-import { OneSignalService } from "src/onesignal/onesignal.service";
+import { OneSignalService } from "./../onesignal/onesignal.service";
+import { UsersService } from "./../users/users.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -24,6 +25,6 @@ import { OneSignalService } from "src/onesignal/onesignal.service";
     NoteCommentEntity,
   ]), ScheduleModule.forRoot(),],
   controllers: [NotesController, NoteInteractionsController],
-  providers: [NotesService, NoteInteractionsService, ReminderService, OneSignalService],
+  providers: [NotesService, NoteInteractionsService, ReminderService, OneSignalService, UsersService],
 })
 export class NotesModule { }

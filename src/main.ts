@@ -14,6 +14,10 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // 🔥 STATIK RESURSLARNI QO‘SHISH (Service Worker uchun)
+  // Bu OneSignalSDKWorker.js kabi fayllarni brauzerga taqdim etadi.
+  app.useStaticAssets(join(__dirname, '..', 'public'));
+
   app.enableCors({
     origin: ['http://localhost:3000', 'https://notesharely.vercel.app'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',

@@ -1,57 +1,101 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
-import { UserEntity } from './../users/entities/user.entity';
-import { Repository } from 'typeorm';
-import { OneSignalService } from './../onesignal/onesignal.service';
+import { CronJob } from 'cron';
+import { OneSignalService } from 'src/onesignal/onesignal.service'; // 🔥 OneSignal servisining to'g'ri yo'lini tekshiring
+import { UsersService } from 'src/users/users.service'; // Player ID olish uchun kerak
+
+// Eslatmalarni xotirada saqlash uchun tip
+interface ScheduledReminder {
+  noteId: number;
+  userId: number;
+  title: string;
+  scheduleDate: Date;
+  jobName: string;
+}
 
 @Injectable()
 export class ReminderService {
   private readonly logger = new Logger(ReminderService.name);
+  private reminders: ScheduledReminder[] = [];
 
+  // 🔥 OneSignalService va UsersService ni inject qiling
   constructor(
     private schedulerRegistry: SchedulerRegistry,
     private oneSignalService: OneSignalService,
-    @InjectRepository(UserEntity)
-    private userRepo: Repository<UserEntity>,) { }
+    private usersService: UsersService,
+  ) { }
 
   async scheduleReminder(
     noteId: number,
-    time: Date,
-    message: string,
+    date: Date,
+    title: string,
     userId: number,
   ) {
-    const delay = time.getTime() - Date.now();
-    if (delay <= 0) {
-      this.logger.warn(`Reminder vaqt o'tgan: note #${noteId}`);
+    const jobName = `reminder-${noteId}`;
+
+    // Agar o'tmishdagi vaqt bo'lsa, eslatmani o'rnatmaslik
+    if (date.getTime() <= Date.now()) {
+      this.logger.warn(`Eslatma o'rnatilmadi (o'tgan vaqt): Note ID ${noteId}`);
       return;
     }
 
-    const timeout = setTimeout(async () => {
-      this.logger.log(`Reminder for note #${noteId}: ${message}`);
+    const reminder: ScheduledReminder = {
+      noteId,
+      userId,
+      title,
+      scheduleDate: date,
+      jobName,
+    };
 
-      const user = await this.userRepo.findOne({ where: { id: userId } });
-      if (user?.onesignal_player_ids?.length) {
-        await this.oneSignalService.sendPushNotification(
-          user.onesignal_player_ids,
-          'Note Eslatmasi',
-          `Eslatma: ${message}`,
-          { noteId: noteId.toString(), type: 'reminder' },
+    // Cron formatiga o'tkazish (Sekund, Minut, Soat, Kun, Oy, Haftaning kuni)
+    const cronTime = `${date.getSeconds()} ${date.getMinutes()} ${date.getHours()} ${date.getDate()} ${date.getMonth() + 1} *`;
+
+    const job = new CronJob(date, async () => {
+      this.logger.log(`🔔 Eslatma vaqti: Note ID ${noteId}, User ID ${userId}`);
+
+      // 1. Foydalanuvchi Player ID sini olish
+      const user = await this.usersService.findById(userId);
+      const playerIds = user.onesignal_player_ids || [];
+
+      if (playerIds.length > 0) {
+        // 2. Push xabarnoma yuborish
+        const response = await this.oneSignalService.sendPushNotification(
+          playerIds,
+          `📝 Eslatma: ${title}`,
+          `Siz ${title} nomli eslatmangizni belgilagan edingiz.`,
         );
+        this.logger.log(`Push yuborildi: ${JSON.stringify(response)}`);
+      } else {
+        this.logger.warn(`User ID ${userId} uchun Player ID topilmadi. Push yuborilmadi.`);
       }
-    }, delay);
 
-    const timeoutName = `note-${noteId}`;
-    this.schedulerRegistry.addTimeout(timeoutName, timeout);
-    this.logger.log(`Reminder scheduled: ${time.toISOString()} (note #${noteId})`);
+      // 3. Eslatmani o'chirish
+      this.cancelReminder(noteId);
+    });
+
+    // Eski reminderni o'chirish
+    this.cancelReminder(noteId);
+
+    // Yangi reminderni o'rnatish
+    this.schedulerRegistry.addCronJob(jobName, job);
+    job.start();
+    this.reminders.push(reminder);
+    this.logger.log(`✅ Eslatma o'rnatildi: Note ID ${noteId} vaqt: ${date.toLocaleString()}`);
   }
 
-  // Reminder ni o'chirish (update/delete da)
   cancelReminder(noteId: number) {
-    const timeoutName = `note-${noteId}`;
-    if (this.schedulerRegistry.doesExist('timeout', timeoutName)) {
-      this.schedulerRegistry.deleteTimeout(timeoutName);
-      this.logger.log(`Reminder cancelled: note #${noteId}`);
+    const jobName = `reminder-${noteId}`;
+    try {
+      this.schedulerRegistry.deleteCronJob(jobName);
+      this.reminders = this.reminders.filter(r => r.noteId !== noteId);
+      this.logger.log(`Eslatma bekor qilindi: ${jobName}`);
+      return true;
+    } catch (e) {
+      return false;
     }
+  }
+
+  getScheduledReminders() {
+    return this.reminders;
   }
 }
