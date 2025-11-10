@@ -6,6 +6,7 @@ import { ProfileEntity } from "./../profile/entities/profile.entity";
 import { CreateNoteDto } from "./dto/note-create-dto";
 import { UpdateNoteDto } from "./dto/not-update-dto";
 import { UserEntity } from "./../users/entities/user.entity";
+import { ReminderService } from "./reminder.service";
 
 @Injectable()
 export class NotesService {
@@ -15,20 +16,33 @@ export class NotesService {
     @InjectRepository(ProfileEntity)
     private profileRepo: Repository<ProfileEntity>,
     @InjectRepository(UserEntity)
-    private readonly userRepo: Repository<UserEntity>
+    private readonly userRepo: Repository<UserEntity>,
+    private readonly reminderService: ReminderService,
   ) { }
 
   async create(profileId: number, dto: CreateNoteDto) {
-    const profile = await this.profileRepo.findOne({ where: { user: { id: profileId } } });
-    if (!profile) {
-      throw new NotFoundException("Profile not found");
-    }
-    const note = this.noteRepo.create({
-      ...dto,
-      profile
+    const profile = await this.profileRepo.findOne({
+      where: { user: { id: profileId } },
+      relations: ['user'],
     });
-    return await this.noteRepo.save(note);
+    if (!profile) throw new NotFoundException('Profile not found');
+
+    const note = this.noteRepo.create({ ...dto, profile });
+    const savedNote = await this.noteRepo.save(note);
+
+    // Reminder o'rnatish
+    if (dto.reminder_at) {
+      await this.reminderService.scheduleReminder(
+        savedNote.id,
+        new Date(dto.reminder_at),
+        savedNote.title || 'No title',
+        profile.user.id, // userId yuboriladi
+      );
+    }
+
+    return savedNote;
   }
+
 
   async findAllMyNotes(userId: number) {
     const user = await this.userRepo.findOne({
@@ -213,17 +227,42 @@ export class NotesService {
   async update(userId: number, id: number, dto: UpdateNoteDto) {
     const note = await this.noteRepo.findOne({
       where: { id },
-      relations: ["profile", "profile.user"],
+      relations: ['profile', 'profile.user'],
     });
 
-    if (!note) throw new NotFoundException("Note not found");
-
+    if (!note) throw new NotFoundException('Note not found');
     if (note.profile.user.id !== userId)
-      throw new ForbiddenException("You cannot edit this note");
+      throw new ForbiddenException('You cannot edit this note');
 
+    const oldReminderAt = note.reminder_at;
     Object.assign(note, dto);
-    return this.noteRepo.save(note);
+    const updated = await this.noteRepo.save(note);
+
+    const newReminderAt = dto.reminder_at ? new Date(dto.reminder_at) : null;
+
+    // Agar reminder o'zgargan yoki o'chirilgan bo'lsa
+    if (
+      oldReminderAt?.getTime() !== newReminderAt?.getTime() ||
+      (!oldReminderAt && newReminderAt) ||
+      (oldReminderAt && !newReminderAt)
+    ) {
+      // Eski reminder ni o'chirish
+      this.reminderService.cancelReminder(updated.id);
+
+      // Yangi reminder ni o'rnatish (agar mavjud bo'lsa)
+      if (newReminderAt) {
+        await this.reminderService.scheduleReminder(
+          updated.id,
+          newReminderAt,
+          updated.title || 'No title',
+          note.profile.user.id, // userId
+        );
+      }
+    }
+
+    return updated;
   }
+
 
 
 

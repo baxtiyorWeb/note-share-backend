@@ -31,6 +31,9 @@ export class NotesEntity {
   @Column({ type: 'varchar', nullable: true })
   code_language: string | null;
 
+  @Column({ type: 'timestamp', nullable: true })
+  reminder_at: Date | null;
+
   @CreateDateColumn()
   createdAt: string;
 

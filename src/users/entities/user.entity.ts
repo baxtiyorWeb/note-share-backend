@@ -20,6 +20,9 @@ export class UserEntity {
   @Column()
   password: string;
 
+  @Column('simple-array', { nullable: true })
+  onesignal_player_ids: string[];
+
   @OneToOne(() => ProfileEntity, (p) => p.user, { cascade: true })
   @JoinColumn()
   profile: ProfileEntity;

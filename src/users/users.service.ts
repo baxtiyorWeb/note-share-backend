@@ -14,6 +14,18 @@ export class UsersService {
     private readonly userRepo: Repository<UserEntity>,
   ) { }
 
+  async addOneSignalId(userId: number, playerId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.onesignal_player_ids) user.onesignal_player_ids = [];
+    if (!user.onesignal_player_ids.includes(playerId)) {
+      user.onesignal_player_ids.push(playerId);
+      await this.userRepo.save(user);
+    }
+  }
+
   async findAllUsers() {
     try {
       return await this.userRepo.find({ relations: ['profile'] });

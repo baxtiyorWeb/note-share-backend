@@ -13,6 +13,8 @@ import {
   UseGuards,
   UseInterceptors,
   ClassSerializerInterceptor,
+  Post,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../common/jwt-strategy/jwt-guards';
@@ -25,6 +27,13 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 
 export class UsersController {
   constructor(private readonly userService: UsersService) { }
+
+  @Post('save-onesignal-id')
+  async saveOneSignalId(@Body() { playerId }: { playerId: string }, @Req() req) {
+    const userId = req.user.sub;
+    await this.userService.addOneSignalId(userId, playerId);
+    return { success: true };
+  }
   @Get('/')
   async findAllUsers() {
     try {

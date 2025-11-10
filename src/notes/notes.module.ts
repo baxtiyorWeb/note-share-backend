@@ -10,6 +10,9 @@ import { NotesController } from "./notes.controller";
 import { NotesService } from "./notes.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Module } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
+import { ReminderService } from "./reminder.service";
+import { OneSignalService } from "src/onesignal/onesignal.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -19,8 +22,8 @@ import { Module } from "@nestjs/common";
     NoteViewEntity,
     NoteLikeEntity,
     NoteCommentEntity,
-  ])],
+  ]), ScheduleModule.forRoot(),],
   controllers: [NotesController, NoteInteractionsController],
-  providers: [NotesService, NoteInteractionsService],
+  providers: [NotesService, NoteInteractionsService, ReminderService, OneSignalService],
 })
 export class NotesModule { }
