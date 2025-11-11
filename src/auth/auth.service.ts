@@ -9,6 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './../users/entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { ProfileEntity } from './../profile/entities/profile.entity';
+import { ProfileService } from './../profile/profile.service';
 
 @Injectable()
 export class AuthService {
@@ -16,9 +18,10 @@ export class AuthService {
     private jwtService: JwtService,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(ProfileEntity)
+    private readonly profileRepo: Repository<ProfileEntity>,
   ) { }
 
-  // 🟢 REGISTER
   async register(email: string, password: string, confirmPassword: string) {
 
     if (!email.toLowerCase().endsWith('@gmail.com')) {
@@ -42,6 +45,13 @@ export class AuthService {
     const savedUser = await this.userRepo.save(newUser);
 
     const tokens = await this.generateTokens(savedUser.id, savedUser.email);
+
+    if (!tokens) {
+      throw new BadRequestException('Failed to generate tokens');
+    }
+
+    await this.profileRepo.create({ userId: savedUser.id });
+
 
     return {
       message: 'User registered successfully',
