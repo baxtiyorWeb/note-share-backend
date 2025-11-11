@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  InternalServerErrorException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Brackets } from "typeorm";
@@ -200,12 +201,38 @@ export class NotesService {
       where: { id: noteId },
       relations: ["profile", "profile.user"],
     });
+
     if (!note) throw new NotFoundException("Note not found");
     if (note.profile.user.id !== userId)
       throw new ForbiddenException("You cannot edit this note");
 
+    // 🔹 Yangi profil yaratishdan oldin mavjudini tekshiramiz
+    let existProfile = await this.profileRepo.findOne({ where: { userId } });
+    if (!existProfile) {
+      try {
+        const username = `user_${userId}_${Math.floor(Math.random() * 10000)}`;
+        const newProfile = this.profileRepo.create({ userId, username });
+        existProfile = await this.profileRepo.save(newProfile);
+      } catch (err) {
+        if (err.code === '23505') {
+          existProfile = await this.profileRepo.findOne({ where: { userId } });
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    delete (dto as any).profile;
+    delete (dto as any).user;
+    delete (dto as any).userId;
+
     const oldReminder = note.reminder_at?.toISOString();
     Object.assign(note, dto);
+    if (!existProfile) {
+      throw new InternalServerErrorException('Profile not found or failed to create');
+    }
+    note.profile = existProfile;
+
     const updated = await this.noteRepo.save(note);
 
     if (dto.reminder_at && dto.reminder_at !== oldReminder) {
@@ -213,12 +240,13 @@ export class NotesService {
         updated.id,
         new Date(dto.reminder_at),
         updated.title || "No title",
-        note.profile.user.id,
+        userId,
       );
     }
 
     return updated;
   }
+
 
   async remove(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
