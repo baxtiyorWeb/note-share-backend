@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, Req } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException, Req } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProfileEntity } from './entities/profile.entity';
 import { Repository } from 'typeorm';
@@ -151,26 +151,41 @@ export class ProfileService {
       const user = await this.userRepo.findOne({
         where: { id },
         relations: ['profile']
-      })
+      });
 
       if (!user) {
         throw new NotFoundException("User not found");
       }
 
-      if (!user.profile) {
-        const newProfile = this.profileRepo.create({ user, ...profileData });
+      if (profileData.username) {
+        const existUsername = await this.profileRepo.findOne({
+          where: { username: profileData.username },
+        });
 
-        return await this.profileRepo.save(newProfile)
+        if (existUsername && existUsername.userId !== id) {
+          throw new ConflictException('This username is already taken');
+        }
       }
 
-      const updateProfile = Object.assign(user.profile, profileData);
+      if (!user.profile) {
+        const newProfile = this.profileRepo.create({
+          user,
+          userId: user.id,
+          ...profileData,
+        });
 
+        return await this.profileRepo.save(newProfile);
+      }
+
+      // 🔹 Aks holda mavjud profilni yangilaymiz
+      const updateProfile = Object.assign(user.profile, profileData);
       return await this.profileRepo.save(updateProfile);
 
     } catch (error) {
       throw new InternalServerErrorException('Profile update failed: ' + error.message);
     }
   }
+
 
   async deleteProfile(id: number) {
     const user = await this.userRepo.findOne({

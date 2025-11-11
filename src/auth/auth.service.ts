@@ -50,8 +50,15 @@ export class AuthService {
       throw new BadRequestException('Failed to generate tokens');
     }
 
-    await this.profileRepo.create({ userId: savedUser.id });
+    if (!savedUser) {
+      throw new BadRequestException('Failed to create user profile');
+    }
 
+    const existProfile = await this.profileRepo.findOne({ where: { userId: savedUser.id } });
+    if (!existProfile) {
+      const newProfile = this.profileRepo.create({ userId: savedUser.id });
+      await this.profileRepo.save(newProfile);
+    }
 
     return {
       message: 'User registered successfully',
@@ -64,26 +71,54 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await this.userRepo.findOne({ where: { email } });
-
-
     if (!email.toLowerCase().endsWith('@gmail.com')) {
-      throw new BadRequestException(
-        'Faqat @gmail.com email orqali kirish mumkin!',
-      );
+      throw new BadRequestException('Faqat @gmail.com email orqali kirish mumkin!');
     }
 
-
+    const user = await this.userRepo.findOne({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
-
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
+    const existProfile = await this.profileRepo.findOne({ where: { userId: user.id } });
+
+    if (!existProfile) {
+      let username = `user_${user.id}`;
+      let isTaken = true;
+
+      while (isTaken) {
+        const conflict = await this.profileRepo.findOne({ where: { username } });
+        if (conflict) {
+          username = `user_${user.id}_${Math.floor(Math.random() * 10000)}`; // user_10_4821
+        } else {
+          isTaken = false;
+        }
+      }
+
+      const newProfile = this.profileRepo.create({
+        userId: user.id,
+        username,
+        firstName: 'User',
+        lastName: 'Name',
+      });
+
+      await this.profileRepo.save(newProfile);
+    }
+
     const tokens = await this.generateTokens(user.id, user.email);
-    return { message: "Login successful", ...tokens };
+
+    return {
+      message: 'Login successful',
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+    };
   }
+
+
 
 
 
