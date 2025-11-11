@@ -158,19 +158,16 @@ export class ProfileService {
 
   async updateProfile(id: number, profileData: Partial<ProfileEntity>) {
     try {
-      if (!id) {
-        throw new BadRequestException("id not submitting");
-      }
+      if (!id) throw new BadRequestException("id not submitting");
 
       const user = await this.userRepo.findOne({
         where: { id },
         relations: ['profile']
       });
 
-      if (!user) {
-        throw new NotFoundException("User not found");
-      }
+      if (!user) throw new NotFoundException("User not found");
 
+      // 🔹 Username conflict check
       if (profileData.username) {
         const existUsername = await this.profileRepo.findOne({
           where: { username: profileData.username },
@@ -181,24 +178,39 @@ export class ProfileService {
         }
       }
 
-      if (!user.profile) {
-        const newProfile = this.profileRepo.create({
+      // 🔹 Har ehtimolga qarshi profilni to‘g‘ridan-to‘g‘ri tekshiramiz
+      let profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+
+      // Agar bazada profil mavjud bo‘lmasa — yangi yaratamiz
+      if (!profile) {
+        profile = this.profileRepo.create({
           user,
           userId: user.id,
           ...profileData,
         });
 
-        return await this.profileRepo.save(newProfile);
+        try {
+          return await this.profileRepo.save(profile);
+        } catch (err) {
+          // Parallel request yoki duplicate holatni tutish
+          if (err.code === '23505') {
+            profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+          } else {
+            throw err;
+          }
+        }
       }
-
-      // 🔹 Aks holda mavjud profilni yangilaymiz
-      const updateProfile = Object.assign(user.profile, profileData);
-      return await this.profileRepo.save(updateProfile);
+      if (!profile) {
+        throw new InternalServerErrorException('Profile could not be loaded');
+      }
+      Object.assign(profile, profileData);
+      return await this.profileRepo.save(profile);
 
     } catch (error) {
       throw new InternalServerErrorException('Profile update failed: ' + error.message);
     }
   }
+
 
 
   async deleteProfile(id: number) {
