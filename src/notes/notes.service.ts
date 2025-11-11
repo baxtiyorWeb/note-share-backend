@@ -176,10 +176,31 @@ export class NotesService {
     });
     if (!user) throw new NotFoundException("User not found");
 
-    let profile = user.profile;
+    // ✅ Upsert bilan profilni kafolatlaymiz
+    await this.profileRepo.upsert(
+      { userId: user.id, username: `user_${user.id}` },
+      ["userId"]
+    );
+
+    // ✅ Profilni aniqlaymiz
+    let profile: ProfileEntity | null = user.profile;
+
     if (!profile) {
-      profile = this.profileRepo.create({ user });
-      await this.profileRepo.save(profile);
+      try {
+        const username = `user_${user.id}_${Math.floor(Math.random() * 10000)}`;
+        profile = this.profileRepo.create({ userId: user.id, username });
+        profile = await this.profileRepo.save(profile);
+      } catch (err) {
+        if (err.code === '23505') {
+          profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!profile) {
+      throw new InternalServerErrorException("Failed to create or fetch profile");
     }
 
     const note = await this.noteRepo.findOne({
@@ -190,11 +211,14 @@ export class NotesService {
 
     const isOwner = note.profile?.id === profile.id;
     const isShared = note.sharedWith.some((p) => p.id === profile.id);
+
     if (!isOwner && !isShared)
       throw new ForbiddenException("You do not have access to this note");
 
     return note;
   }
+
+
 
   async update(userId: number, noteId: number, dto: UpdateNoteDto) {
     const note = await this.noteRepo.findOne({
