@@ -81,42 +81,30 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
-    const existProfile = await this.profileRepo.findOne({ where: { userId: user.id } });
+    let existProfile = await this.profileRepo.findOne({ where: { userId: user.id } });
 
     if (!existProfile) {
-      let username = `user_${user.id}`;
-      let isTaken = true;
-
-      while (isTaken) {
-        const conflict = await this.profileRepo.findOne({ where: { username } });
-        if (conflict) {
-          username = `user_${user.id}_${Math.floor(Math.random() * 10000)}`; // user_10_4821
+      try {
+        const username = `user_${user.id}_${Math.floor(Math.random() * 10000)}`;
+        const newProfile = this.profileRepo.create({ userId: user.id, username });
+        existProfile = await this.profileRepo.save(newProfile);
+      } catch (err) {
+        if (err.code === '23505') {
+          existProfile = await this.profileRepo.findOne({ where: { userId: user.id } });
         } else {
-          isTaken = false;
+          throw err;
         }
       }
-
-      const newProfile = this.profileRepo.create({
-        userId: user.id,
-        username,
-        firstName: 'User',
-        lastName: 'Name',
-      });
-
-      await this.profileRepo.save(newProfile);
     }
 
     const tokens = await this.generateTokens(user.id, user.email);
-
     return {
       message: 'Login successful',
       ...tokens,
-      user: {
-        id: user.id,
-        email: user.email,
-      },
+      user: { id: user.id, email: user.email },
     };
   }
+
 
 
 
