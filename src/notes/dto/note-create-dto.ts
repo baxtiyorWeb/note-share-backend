@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, IsIn } from 'class-validator';
 
 export class CreateNoteDto {
   @IsNotEmpty()
@@ -20,4 +20,29 @@ export class CreateNoteDto {
   @IsOptional()
   @IsDateString()
   reminder_at?: string;
+
+  // 🆕 Yangi maydonlar
+  @IsOptional()
+  @IsString()
+  seo_slug?: string;
+
+  @IsOptional()
+  @IsString()
+  tags?: string;
+
+  @IsOptional()
+  @IsIn(['public', 'private', 'unlisted'])
+  visibility?: 'public' | 'private' | 'unlisted';
+
+  @IsOptional()
+  @IsBoolean()
+  allow_comments?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  share_to_twitter?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }
