@@ -55,10 +55,12 @@ export class NotesService {
     });
 
     if (!user) throw new NotFoundException("User not found");
-    if (!user.profile) throw new NotFoundException("Profile not found for user");
+    let profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+
+    if (!profile) throw new NotFoundException("Profile not found for user");
 
     const notes = await this.noteRepo.find({
-      where: { profile: { id: user.profile.id } },
+      where: { profile: { id: profile.id } },
       relations: [
         "profile",
         "views",
