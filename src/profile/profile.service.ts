@@ -33,31 +33,44 @@ export class ProfileService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    // Agar profil yo'q bo‘lsa, yaratamiz
-    if (!user.profile) {
-      const newProfile = this.profileRepo.create({
-        user,
-        userId: user.id,
-        username: `user_${user.id}`,
-        firstName: 'User',
-        lastName: 'Name',
-      });
-      user.profile = await this.profileRepo.save(newProfile);
-      await this.userRepo.save(user);
+
+    let profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+
+    if (!profile) {
+      try {
+        const username = `user_${user.id}_${Math.floor(Math.random() * 10000)}`;
+        const newProfile = this.profileRepo.create({
+          user,
+          userId: user.id,
+          username,
+          firstName: 'User',
+          lastName: 'Name',
+        });
+        profile = await this.profileRepo.save(newProfile);
+        user.profile = profile;
+        await this.userRepo.save(user);
+      } catch (err) {
+
+        if (err.code === '23505') {
+          profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+        } else {
+          throw new InternalServerErrorException('Profile creation failed: ' + err.message);
+        }
+      }
     }
 
-    // 💡 CLEAN JSON STRUCTURE
+
     const cleaned = {
       id: user.id,
       email: user.email,
-      profile: user.profile && {
-        id: user.profile.id,
-        firstName: user.profile.firstName,
-        lastName: user.profile.lastName,
-        username: user.profile.username,
-        avatar: user.profile.avatar,
-        coverImage: user.profile.coverImage,
-        notes: user.profile.notes?.map((n) => ({
+      profile: profile && {
+        id: profile.id,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        username: profile.username,
+        avatar: profile.avatar,
+        coverImage: profile.coverImage,
+        notes: profile.notes?.map((n) => ({
           id: n.id,
           title: n.title,
           content: n.content,
@@ -94,6 +107,7 @@ export class ProfileService {
 
     return cleaned;
   }
+
 
 
 

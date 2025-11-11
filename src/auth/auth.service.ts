@@ -10,7 +10,6 @@ import { UserEntity } from './../users/entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ProfileEntity } from './../profile/entities/profile.entity';
-import { ProfileService } from './../profile/profile.service';
 
 @Injectable()
 export class AuthService {
