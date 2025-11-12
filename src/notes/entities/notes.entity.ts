@@ -61,7 +61,7 @@ export class NotesEntity {
   @UpdateDateColumn()
   updatedAt: string;
 
-  @OneToMany(() => NoteViewEntity, (v) => v.note)
+  @OneToMany(() => NoteViewEntity, (v) => v.note, { cascade: true })
   views: NoteViewEntity[];
 
   @OneToMany(() => NoteLikeEntity, (l) => l.note)

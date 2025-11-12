@@ -1,6 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, Unique } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  CreateDateColumn,
+  Unique,
+  JoinColumn,
+} from "typeorm";
 import { NotesEntity } from "./notes.entity";
-import { ProfileEntity } from "./../../profile/entities/profile.entity";
+import { ProfileEntity } from "../../profile/entities/profile.entity";
 
 @Entity("note_views")
 @Unique(["note", "viewer"])
@@ -8,10 +15,14 @@ export class NoteViewEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => NotesEntity, note => note.views, { onDelete: "CASCADE" })
+  @ManyToOne(() => NotesEntity, (note) => note.views, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "noteId" }) // ✅ FK ustun aniq nom bilan
   note: NotesEntity;
 
-  @ManyToOne(() => ProfileEntity, { onDelete: "CASCADE" })
+  @ManyToOne(() => ProfileEntity, (profile) => profile.viewedNotes, {
+    onDelete: "CASCADE",
+  })
+  @JoinColumn({ name: "viewerId" }) // ✅ FK ustun aniq nom bilan
   viewer: ProfileEntity;
 
   @CreateDateColumn()
