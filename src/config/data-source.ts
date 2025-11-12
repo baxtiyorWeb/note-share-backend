@@ -6,7 +6,7 @@ config();
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL, // ✅ yagona connection string
-  synchronize: false, // productionda hech qachon true bo‘lmasin
+  synchronize: true, // productionda hech qachon true bo‘lmasin
   logging: true,
 
   // ✅ TypeORM uchun to‘g‘ri pathlar
