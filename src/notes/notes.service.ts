@@ -231,6 +231,18 @@ export class NotesService {
     return updated;
   }
 
+  private async ensureProfile(userId: number): Promise<ProfileEntity> {
+    let profile = await this.profileRepo.findOne({ where: { userId } });
+
+    if (!profile) {
+      const username = `user_${userId}_${Math.floor(Math.random() * 10000)}`;
+      profile = this.profileRepo.create({ userId, username });
+      profile = await this.profileRepo.save(profile);
+    }
+
+    return profile;
+  }
+
   async remove(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -238,9 +250,7 @@ export class NotesService {
     });
     if (!user) throw new NotFoundException("User not found");
 
-    if (!user.profile) {
-      throw new ForbiddenException("User has no profile");
-    }
+    const profile = await this.ensureProfile(user.id);
 
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
@@ -252,7 +262,7 @@ export class NotesService {
       throw new InternalServerErrorException("Note has no associated profile");
     }
 
-    if (note.profile.id !== user.profile.id) {
+    if (note.profile.id !== profile.id) {
       throw new ForbiddenException("You cannot delete this note");
     }
 
@@ -261,7 +271,7 @@ export class NotesService {
   }
 
 
-  // ✅ Share a note with another profile
+
   async shareNote(noteId: number, targetProfileId: number, ownerProfileId: number) {
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
