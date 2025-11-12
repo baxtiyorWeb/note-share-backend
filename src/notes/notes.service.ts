@@ -232,16 +232,20 @@ export class NotesService {
   }
 
   private async ensureProfile(userId: number): Promise<ProfileEntity> {
+    // Avval profilni topamiz
     let profile = await this.profileRepo.findOne({ where: { userId } });
 
-    if (!profile) {
-      const username = `user_${userId}_${Math.floor(Math.random() * 10000)}`;
-      profile = this.profileRepo.create({ userId, username });
-      profile = await this.profileRepo.save(profile);
+    // ✅ Agar profil mavjud bo‘lsa — mavjudini qaytaramiz
+    if (profile) {
+      return profile;
     }
 
-    return profile;
+    // ❌ Faqat profil yo‘q bo‘lsa, yangi yaratamiz
+    const username = `user_${userId}_${Math.floor(Math.random() * 10000)}`;
+    profile = this.profileRepo.create({ userId, username });
+    return await this.profileRepo.save(profile);
   }
+
 
   async remove(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
@@ -250,6 +254,7 @@ export class NotesService {
     });
     if (!user) throw new NotFoundException("User not found");
 
+    // ✅ Profilni kafolatlaymiz (mavjud bo‘lsa, shunchaki qaytadi)
     const profile = await this.ensureProfile(user.id);
 
     const note = await this.noteRepo.findOne({
@@ -269,6 +274,7 @@ export class NotesService {
     await this.noteRepo.remove(note);
     return { message: "Note deleted successfully" };
   }
+
 
 
 
