@@ -14,8 +14,6 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 🔥 STATIK RESURSLARNI QO‘SHISH (Service Worker uchun)
-  // Bu OneSignalSDKWorker.js kabi fayllarni brauzerga taqdim etadi.
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
   app.enableCors({

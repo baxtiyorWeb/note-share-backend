@@ -45,7 +45,7 @@ import { ScheduleModule } from '@nestjs/schedule';
           FollowEntity
         ],
         autoLoadEntities: true,
-        synchronize: true, // production’da false qilish tavsiya
+        synchronize: process.env.NODE_ENV !== 'production', // production’da false qilish tavsiya
         // ssl: { rejectUnauthorized: false }, // Neon/Railway’da kerak bo‘lishi mumkin
       }),
     }),
