@@ -231,7 +231,6 @@ export class NotesService {
     return updated;
   }
 
-  // ✅ Delete note
   async remove(userId: number, noteId: number) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -239,18 +238,28 @@ export class NotesService {
     });
     if (!user) throw new NotFoundException("User not found");
 
+    if (!user.profile) {
+      throw new ForbiddenException("User has no profile");
+    }
+
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
       relations: ["profile"],
     });
     if (!note) throw new NotFoundException("Note not found");
 
-    if (note.profile.id !== user.profile.id)
+    if (!note.profile) {
+      throw new InternalServerErrorException("Note has no associated profile");
+    }
+
+    if (note.profile.id !== user.profile.id) {
       throw new ForbiddenException("You cannot delete this note");
+    }
 
     await this.noteRepo.remove(note);
     return { message: "Note deleted successfully" };
   }
+
 
   // ✅ Share a note with another profile
   async shareNote(noteId: number, targetProfileId: number, ownerProfileId: number) {
