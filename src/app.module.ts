@@ -51,9 +51,9 @@ import { DashboardController } from "./dashboard/dashboard.controller";
           FollowEntity,
         ],
         autoLoadEntities: true,
-        synchronize: config.get<string>("NODE_ENV") !== "production", // devda true, prod’da false
+        synchronize: config.get<string>("NODE_ENV") !== "production",
         ssl:
-          config.get<string>("NODE_ENV") === "production"
+          config.get<string>("NODE_ENV") !== "production"
             ? { rejectUnauthorized: false }
             : false,
         logging: true,
