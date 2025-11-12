@@ -13,7 +13,6 @@ export const AppDataSource = new DataSource({
   entities: ["dist/**/*.entity{.ts,.js}"],
   migrations: ["dist/migrations/*{.ts,.js}"],
 
-  // ✅ SSL faqat productionda yoqiladi (Render, Railway, Neon uchun)
   ssl:
     process.env.NODE_ENV === "production"
       ? { rejectUnauthorized: false }

@@ -39,7 +39,6 @@ export class ProfileEntity {
   @Column({ nullable: true })
   userId?: number;
 
-  // ✅ NoteViewEntity bilan ikki yo‘nalishli aloqa
   @OneToMany(() => NoteViewEntity, (view) => view.viewer)
   viewedNotes: NoteViewEntity[];
 
