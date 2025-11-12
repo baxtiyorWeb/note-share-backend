@@ -22,7 +22,7 @@ export class NoteViewEntity {
   @ManyToOne(() => ProfileEntity, (profile) => profile.viewedNotes, {
     onDelete: "CASCADE",
   })
-  @JoinColumn({ name: "viewerId" }) // ✅ FK ustun aniq nom bilan
+  @JoinColumn({ name: "viewerId" })
   viewer: ProfileEntity;
 
   @CreateDateColumn()
