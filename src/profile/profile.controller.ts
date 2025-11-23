@@ -5,6 +5,7 @@ import { ProfileService } from './profile.service';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './../file/uploadService';
+import { PremiumGuard } from './../common/guards/premium.guard';
 
 @Controller('profile')
 @ApiBearerAuth()
@@ -77,10 +78,66 @@ export class ProfileController {
     return user
   }
 
+
+  // === PREMIUM & MONETIZATION ===
+  @Patch('premium')
+  @UseGuards(PremiumGuard)
+  togglePremium(@Req() req) {
+    return this.profileService.togglePremium(req.user.sub);
+  }
+
+  @Post('tip/:profileId')
+  sendTip(@Req() req, @Param('profileId') id: number, @Body('amount') amount: number) {
+    return this.profileService.sendTip(req.user.sub, id, amount);
+  }
+
+  // === CUSTOMIZATION ===
+  @Patch('links')
+  updateLinks(@Req() req, @Body() links: { title: string; url: string }[]) {
+    return this.profileService.updateLinks(req.user.sub, links);
+  }
+
+  @Patch('theme')
+  updateTheme(@Req() req, @Body() theme: any) {
+    return this.profileService.updateTheme(req.user.sub, theme);
+  }
+
+  // === PINNED POST ===
+  @Post('pin/:noteId')
+  pinNote(@Req() req, @Param('noteId') noteId: number) {
+    return this.profileService.pinNote(req.user.sub, noteId);
+  }
+
+  @Delete('unpin')
+  unpinNote(@Req() req) {
+    return this.profileService.unpinNote(req.user.sub);
+  }
+
+  // === ANALYTICS ===
+  @Get('analytics')
+  @UseGuards(PremiumGuard)
+  getAnalytics(@Req() req) {
+    return this.profileService.getAnalytics(req.user.sub);
+  }
+
+  // === AI SUMMARY ===
+  @Post('generate-summary')
+  generateSummary(@Req() req) {
+    return this.profileService.generateAISummary(req.user.sub);
+  }
+
+  // === EXPORT ===
+  @Get('export')
+  exportProfile(@Req() req) {
+    return this.profileService.exportProfile(req.user.sub);
+  }
+
   @Get(':username')
   async getByUsername(@Param('username') username: string) {
     return this.profileService.getByUsername(username);
   }
+
+
 
 
   @Get('by-profilename/:profilename')

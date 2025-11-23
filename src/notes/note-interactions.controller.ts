@@ -33,6 +33,28 @@ export class NoteInteractionsController {
   toggleLike(@Req() req, @Param("noteId", ParseIntPipe) noteId: number) {
     return this.service.toggleLike(noteId, req.user.sub);
   }
+  @Post("comment/:commentId/reply")
+  @ApiOperation({ summary: "Reply to a comment" })
+  @ApiParam({ name: "noteId", type: Number, description: "Note ID" })
+  @ApiParam({ name: "commentId", type: Number, description: "Parent comment ID" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", example: "I totally agree!" },
+      },
+      required: ["text"],
+    },
+  })
+  replyToComment(
+    @Req() req,
+    @Param("noteId", ParseIntPipe) noteId: number,
+    @Param("commentId", ParseIntPipe) commentId: number,
+    @Body("text") text: string,
+  ) {
+    return this.service.replyToComment(noteId, req.user.sub, commentId, text);
+  }
+
 
   @Post("comment")
   @ApiOperation({ summary: "Add a comment to a note" })

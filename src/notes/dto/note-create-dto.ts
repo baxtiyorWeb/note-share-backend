@@ -45,4 +45,20 @@ export class CreateNoteDto {
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  scheduled_at?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_paywall?: boolean;
+
+  @IsOptional()
+  @IsString()
+  paywall_price?: string;
+
+  @IsOptional()
+  @IsIn(['draft', 'published', 'scheduled'])
+  status?: 'draft' | 'published' | 'scheduled';
 }

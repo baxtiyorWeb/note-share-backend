@@ -14,6 +14,14 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { ReminderService } from "./reminder.service";
 import { OneSignalService } from "./../onesignal/onesignal.service";
 import { UsersService } from "./../users/users.service";
+import { SavedNoteEntity } from "./entities/saved-note.entity";
+import { NoteExportEntity } from "./entities/note-export.entity";
+import { PaymentEntity } from "./../payment/entities/payment.entity";
+import { ExportService } from "./../export/export.service";
+import { AiService } from "./../notification/ai.service";
+import { NotificationService } from "./../notification/notification.service";
+import { UploadService } from "./../file/uploadService";
+import { NotificationEntity } from "./../notification/entities/notification.entity";
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -23,8 +31,12 @@ import { UsersService } from "./../users/users.service";
     NoteViewEntity,
     NoteLikeEntity,
     NoteCommentEntity,
+    SavedNoteEntity,
+    NoteExportEntity,
+    PaymentEntity,
+    NotificationEntity,
   ]), ScheduleModule.forRoot(),],
   controllers: [NotesController, NoteInteractionsController],
-  providers: [NotesService, NoteInteractionsService, ReminderService, OneSignalService, UsersService],
+  providers: [NotesService, NoteInteractionsService, UploadService, ExportService, AiService, NotificationService, ReminderService, OneSignalService, UsersService],
 })
 export class NotesModule { }

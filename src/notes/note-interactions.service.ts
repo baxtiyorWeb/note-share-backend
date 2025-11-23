@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, IsNull } from "typeorm";
 import { NotesEntity } from "./entities/notes.entity";
 import { ProfileEntity } from "../profile/entities/profile.entity";
 import { NoteViewEntity } from "./entities/note-view.entity";
@@ -116,17 +116,77 @@ export class NoteInteractionsService {
     };
   }
 
-  // ✅ Get all comments
+
+  // ✅ Add reply to a comment
+  async replyToComment(noteId: number, userId: number, parentId: number, text: string) {
+    const note = await this.noteRepo.findOne({ where: { id: noteId } });
+    if (!note) throw new NotFoundException("Note not found");
+
+    const profile = await this.getOrCreateProfile(userId);
+
+    const parentComment = await this.commentRepo.findOne({
+      where: { id: parentId },
+      relations: ["note"],
+    });
+    if (!parentComment) throw new NotFoundException("Parent comment not found");
+
+    if (parentComment.note.id !== noteId)
+      throw new ConflictException("This comment does not belong to this note");
+
+    const reply = this.commentRepo.create({
+      note,
+      author: profile,
+      text,
+      parent: parentComment,
+    });
+
+    await this.commentRepo.save(reply);
+
+    return {
+      message: "Reply added successfully",
+      reply: {
+        id: reply.id,
+        text: reply.text,
+        createdAt: reply.createdAt,
+        parentId: parentComment.id,
+        author: {
+          id: profile.id,
+          username: profile.username,
+        },
+      },
+    };
+  }
+
   async getComments(noteId: number) {
     const note = await this.noteRepo.findOne({ where: { id: noteId } });
     if (!note) throw new NotFoundException("Note not found");
 
-    return this.commentRepo.find({
-      where: { note: { id: noteId } },
-      relations: ["author"],
+    const comments = await this.commentRepo.find({
+      where: { note: { id: noteId }, parent: IsNull() },
+      relations: ["author", "replies", "replies.author"],
       order: { createdAt: "ASC" },
     });
+
+    return comments.map((comment) => ({
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      author: {
+        id: comment.author.id,
+        username: comment.author.username,
+      },
+      replies: comment.replies.map((reply) => ({
+        id: reply.id,
+        text: reply.text,
+        createdAt: reply.createdAt,
+        author: {
+          id: reply.author.id,
+          username: reply.author.username,
+        },
+      })),
+    }));
   }
+
 
   // ✅ Delete comment
   async deleteComment(commentId: number, userId: number) {

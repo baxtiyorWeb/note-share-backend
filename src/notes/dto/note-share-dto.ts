@@ -1,8 +1,14 @@
-import { IsArray, IsInt, ArrayNotEmpty } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import { IsInt, IsNotEmpty } from "class-validator";
 
 export class ShareNoteDto {
-  @IsArray()
-  @ArrayNotEmpty()
-  @IsInt({ each: true })
-  profileIds: number[];
+  @ApiProperty({
+    example: 12,
+    description: "Note kimga ulashilayotganini bildiruvchi target profile ID",
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsNotEmpty()
+  targetProfileId: number;
 }

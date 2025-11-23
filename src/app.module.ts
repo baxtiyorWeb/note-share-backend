@@ -27,6 +27,12 @@ import { FollowEntity } from "./follow/entities/follow.entity";
 // 🔹 Boshqa xizmatlar
 import { OneSignalService } from "./onesignal/onesignal.service";
 import { DashboardController } from "./dashboard/dashboard.controller";
+import { NotificationModule } from './notification/notification.module';
+import { ChatModule } from './chat/chat.module';
+import { PinnedNoteEntity } from "./profile/entities/pinned-note.entity";
+import { PaymentModule } from './payment/payment.module';
+import { ExportService } from './export/export.service';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -49,6 +55,7 @@ import { DashboardController } from "./dashboard/dashboard.controller";
           NoteCommentEntity,
           NoteViewEntity,
           FollowEntity,
+          PinnedNoteEntity
         ],
         autoLoadEntities: true,
         synchronize: true,
@@ -79,6 +86,10 @@ import { DashboardController } from "./dashboard/dashboard.controller";
     DashboardModule,
     FileModule,
     FollowModule,
+    NotificationModule,
+    ChatModule,
+    PaymentModule,
+    ExportModule,
   ],
 
   controllers: [DashboardController],
@@ -86,6 +97,7 @@ import { DashboardController } from "./dashboard/dashboard.controller";
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     OneSignalService,
+    ExportService,
   ],
 })
 export class AppModule { }
