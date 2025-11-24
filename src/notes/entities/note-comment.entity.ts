@@ -14,7 +14,7 @@ export class NoteCommentEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column("text")
+  @Column("text", {nullable: true})
   text: string;
 
   @CreateDateColumn()
