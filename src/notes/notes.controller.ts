@@ -18,22 +18,14 @@ import { PremiumGuard } from '../common/guards/premium.guard';
 import { CreateNoteDto } from './dto/note-create-dto';
 import { UpdateNoteDto } from './dto/not-update-dto';
 import { ShareNoteDto } from './dto/note-share-dto';
-import {
-  ApiBearerAuth,
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiBody,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('Notes')
 @UseGuards(JwtAuthGuard)
 @Controller('notes')
 export class NotesController {
-  constructor(private readonly notesService: NotesService) { }
+  constructor(private readonly notesService: NotesService) {}
 
   @Post()
   @ApiOperation({ summary: 'Yangi note yaratish' })
@@ -53,11 +45,11 @@ export class NotesController {
   getDrafts(@Req() req) {
     return this.notesService.getDrafts(req.user.sub);
   }
-
   @Get()
   @ApiOperation({ summary: 'Mening notelarim' })
-  findAll(@Req() req) {
-    return this.notesService.findAllMyNotes(req.user.sub);
+  findAll(@Req() req, @Query('recent') recent?: string) {
+    const recentOnly = recent === 'true'; 
+    return this.notesService.findAllMyNotes(req.user.sub, recentOnly);
   }
 
   @Get('shared-with-me')
@@ -80,7 +72,13 @@ export class NotesController {
   @Get('news')
   @ApiOperation({ summary: 'Yangiliklar' })
   getNews(@Query('page') page = 1, @Query('size') size = 10) {
-    return this.notesService.getExploreNotes('latest', undefined, +page, +size, 'news');
+    return this.notesService.getExploreNotes(
+      'latest',
+      undefined,
+      +page,
+      +size,
+      'news',
+    );
   }
 
   @Get('slug/:slug')
@@ -97,7 +95,11 @@ export class NotesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Note yangilash' })
-  update(@Req() req, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateNoteDto) {
+  update(
+    @Req() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateNoteDto,
+  ) {
     return this.notesService.update(req.user.sub, id, dto);
   }
 
@@ -109,7 +111,11 @@ export class NotesController {
 
   @Post(':id/share')
   @ApiOperation({ summary: 'Ulashish' })
-  share(@Req() req, @Param('id', ParseIntPipe) id: number, @Body() dto: ShareNoteDto) {
+  share(
+    @Req() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ShareNoteDto,
+  ) {
     return this.notesService.shareNote(id, dto.targetProfileId, req.user.sub);
   }
 
@@ -140,7 +146,11 @@ export class NotesController {
   @Patch(':id/paywall')
   @UseGuards(PremiumGuard)
   @ApiOperation({ summary: 'Paywall qo‘yish' })
-  setPaywall(@Req() req, @Param('id') id: number, @Body('price') price: string) {
+  setPaywall(
+    @Req() req,
+    @Param('id') id: number,
+    @Body('price') price: string,
+  ) {
     return this.notesService.setPaywall(req.user.sub, id, price);
   }
 
@@ -167,7 +177,11 @@ export class NotesController {
   @Get(':id/export/:format')
   @UseGuards(PremiumGuard)
   @ApiOperation({ summary: 'Eksport' })
-  export(@Req() req, @Param('id') id: number, @Param('format') format: 'pdf' | 'json') {
+  export(
+    @Req() req,
+    @Param('id') id: number,
+    @Param('format') format: 'pdf' | 'json',
+  ) {
     return this.notesService.exportNote(req.user.sub, id, format);
   }
 }

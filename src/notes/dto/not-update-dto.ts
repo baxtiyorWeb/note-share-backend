@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, IsIn } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, IsIn, IsInt } from 'class-validator';
 
 export class UpdateNoteDto {
   @IsOptional()
@@ -20,6 +20,11 @@ export class UpdateNoteDto {
   @IsOptional()
   @IsDateString()
   reminder_at?: string;
+
+  // category_id ni yangilashga ruxsat berish uchun
+  @IsOptional()
+  @IsInt()
+  category_id?: number;
 
   // 🆕 Qo‘shimcha maydonlar
   @IsOptional()

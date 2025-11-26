@@ -5,10 +5,9 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
-  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets, In, LessThanOrEqual } from 'typeorm';
+import { Repository, Brackets, In, LessThanOrEqual, MoreThan } from 'typeorm';
 import { NotesEntity } from './entities/notes.entity';
 import { ProfileEntity } from '../profile/entities/profile.entity';
 import { UserEntity } from '../users/entities/user.entity';
@@ -24,7 +23,6 @@ import { ReminderService } from './reminder.service';
 import { ExportService } from './../export/export.service';
 import { AiService } from './../notification/ai.service';
 import { NotificationService } from '../notification/notification.service';
-import { PaymentService } from './../payment/payment.service';
 
 @Injectable()
 export class NotesService {
@@ -60,11 +58,12 @@ export class NotesService {
     private readonly exportService: ExportService,
     private readonly aiService: AiService,
     private readonly notificationService: NotificationService,
-  ) { }
+  ) {}
 
-  // === HELPER: Ensure profile ===
   public async ensureProfile(userId: number): Promise<ProfileEntity> {
-    let profile = await this.profileRepo.findOne({ where: { user: { id: userId } } });
+    let profile = await this.profileRepo.findOne({
+      where: { user: { id: userId } },
+    });
     if (!profile) {
       const username = `user_${userId}_${Math.floor(Math.random() * 10000)}`;
       profile = this.profileRepo.create({ userId, username });
@@ -73,36 +72,42 @@ export class NotesService {
     return profile;
   }
 
-  // === HELPER: Get owned note ===
-  private async getOwnedNote(userId: number, noteId: number): Promise<NotesEntity> {
+  private async getOwnedNote(
+    userId: number,
+    noteId: number,
+  ): Promise<NotesEntity> {
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
       relations: ['profile', 'profile.user'],
     });
     if (!note) throw new NotFoundException('Note not found');
-    if (note.profile.user.id !== userId) throw new ForbiddenException('Not your note');
+    if (note.profile.user.id !== userId)
+      throw new ForbiddenException('Not your note');
     return note;
   }
 
-  // === CREATE NOTE ===
   async create(userId: number, dto: CreateNoteDto): Promise<NotesEntity> {
     const profile = await this.ensureProfile(userId);
-    const { mentions, hashtags } = this.extractMentionsAndHashtags(dto.content || '');
+    const { mentions, hashtags } = this.extractMentionsAndHashtags(
+      dto.content || '',
+    );
 
     const note = this.noteRepo.create({
       ...dto,
       profile,
       status: dto.status || 'published',
+      category_id: dto.category_id,
       seo_slug: dto.seo_slug || this.generateSlug(dto.title),
-      mentions: mentions.map(m => ({ profileId: 0, position: m.position })),
-      hashtags: hashtags.map(h => ({ tag: h.tag, position: h.position })),
+      mentions: mentions.map((m) => ({ profileId: 0, position: m.position })),
+      hashtags: hashtags.map((h) => ({ tag: h.tag, position: h.position })),
     });
 
     const saved = await this.noteRepo.save(note);
 
-    // Resolve mentions
     for (const m of mentions) {
-      const target = await this.profileRepo.findOne({ where: { username: m.username } });
+      const target = await this.profileRepo.findOne({
+        where: { username: m.username },
+      });
       if (target) {
         await this.notificationService.create(
           'MENTION',
@@ -114,7 +119,6 @@ export class NotesService {
       }
     }
 
-    // Schedule reminder
     if (dto.reminder_at) {
       await this.reminderService.scheduleReminder(
         saved.id,
@@ -127,12 +131,10 @@ export class NotesService {
     return saved;
   }
 
-
-
-  // === SCHEDULED POST ===
   async schedule(userId: number, dto: CreateNoteDto): Promise<NotesEntity> {
     const profile = await this.ensureProfile(userId);
-    if (!dto.scheduled_at) throw new BadRequestException('scheduled_at is required');
+    if (!dto.scheduled_at)
+      throw new BadRequestException('scheduled_at is required');
 
     const note = this.noteRepo.create({
       ...dto,
@@ -145,7 +147,6 @@ export class NotesService {
     return this.noteRepo.save(note);
   }
 
-  // === DRAFTS ===
   async getDrafts(userId: number) {
     const profile = await this.ensureProfile(userId);
     return this.noteRepo.find({
@@ -154,32 +155,47 @@ export class NotesService {
     });
   }
 
-  // === FIND ALL MY NOTES ===
-  async findAllMyNotes(userId: number) {
+  async findAllMyNotes(userId: number, recentOnly = false) {
     const profile = await this.ensureProfile(userId);
+
+    const where: any = { profile: { id: profile.id } };
+
+    if (recentOnly) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1); // 24 soat oldingi vaqt
+      where.createdAt = MoreThan(yesterday);
+    }
+
     const notes = await this.noteRepo.find({
-      where: { profile: { id: profile.id } },
-      relations: ['likes', 'comments', 'views', 'savedBy'],
+      where,
+      relations: ['likes', 'comments', 'views', 'savedBy', 'category'],
       order: { createdAt: 'DESC' },
     });
 
-    return notes.map(n => this.enrichNote(n, profile.id));
+    return notes.map((n) => this.enrichNote(n, profile.id));
   }
 
-  // === FIND ONE ===
   async findOne(userId: number, noteId: number) {
     const profile = await this.ensureProfile(userId);
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
-      relations: ['profile', 'sharedWith', 'savedBy', 'likes', 'comments', 'views'],
+      relations: [
+        'profile',
+        'sharedWith',
+        'savedBy',
+        'likes',
+        'comments',
+        'views',
+      ],
     });
     if (!note) throw new NotFoundException('Note not found');
 
     const isOwner = note.profile.id === profile.id;
-    const isShared = note.sharedWith?.some(p => p.id === profile.id);
+    const isShared = note.sharedWith?.some((p) => p.id === profile.id);
     const canView = note.visibility === 'public' || isOwner || isShared;
 
-    if (!canView && note.status !== 'published') throw new ForbiddenException('Access denied');
+    if (!canView && note.status !== 'published')
+      throw new ForbiddenException('Access denied');
     if (note.is_paywall && !(await this.checkPaywallAccess(userId, note))) {
       throw new ForbiddenException('Paywall: purchase required');
     }
@@ -187,7 +203,6 @@ export class NotesService {
     return this.enrichNote(note, profile.id);
   }
 
-  // === UPDATE ===
   async update(userId: number, noteId: number, dto: UpdateNoteDto) {
     const note = await this.getOwnedNote(userId, noteId);
     const oldReminder = note.reminder_at?.toISOString();
@@ -216,9 +231,6 @@ export class NotesService {
     return { message: 'Note deleted successfully' };
   }
 
-  // === EXPLORE (PUBLIC FEED) ===
-  // src/notes/notes.service.ts (faqat bu funksiya o‘zgartirildi)
-
   async getExploreNotes(
     sort?: string,
     search?: string,
@@ -236,7 +248,6 @@ export class NotesService {
       .andWhere('note.status = :status', { status: 'published' })
       .andWhere('note.type = :type', { type });
 
-    // SEARCH WITH pg_trgm + similarity
     if (search) {
       const normalized = search.trim();
 
@@ -265,8 +276,7 @@ export class NotesService {
       ).setParameter('s', search);
     }
 
-    qb.groupBy('note.id')
-      .addGroupBy('profile.id');
+    qb.groupBy('note.id').addGroupBy('profile.id');
 
     // Tartiblash
     if (search) {
@@ -289,23 +299,30 @@ export class NotesService {
       size,
       totalPages: Math.ceil(total / size),
       nextPage: page * size < total ? page + 1 : null,
-      notes: notes.map(n => this.enrichNote(n)),
+      notes: notes.map((n) => this.enrichNote(n)),
     };
   }
 
   // === SHARE NOTE ===
-  async shareNote(noteId: number, targetProfileId: number, ownerProfileId: number) {
+  async shareNote(
+    noteId: number,
+    targetProfileId: number,
+    ownerProfileId: number,
+  ) {
     const note = await this.noteRepo.findOne({
       where: { id: noteId },
       relations: ['profile', 'sharedWith'],
     });
     if (!note) throw new NotFoundException('Note not found');
-    if (note.profile.id !== ownerProfileId) throw new ForbiddenException('Only owner can share');
+    if (note.profile.id !== ownerProfileId)
+      throw new ForbiddenException('Only owner can share');
 
-    if (note.sharedWith?.some(p => p.id === targetProfileId))
+    if (note.sharedWith?.some((p) => p.id === targetProfileId))
       throw new ConflictException('Already shared');
 
-    const target = await this.profileRepo.findOne({ where: { id: targetProfileId } });
+    const target = await this.profileRepo.findOne({
+      where: { id: targetProfileId },
+    });
     if (!target) throw new NotFoundException('Target profile not found');
 
     note.sharedWith = [...(note.sharedWith || []), target];
@@ -333,7 +350,7 @@ export class NotesService {
       .orderBy('note.createdAt', 'DESC')
       .getMany();
 
-    return notes.map(n => this.enrichNote(n, profile.id));
+    return notes.map((n) => this.enrichNote(n, profile.id));
   }
 
   // === SAVE / UNSAVE ===
@@ -366,10 +383,16 @@ export class NotesService {
     const profile = await this.ensureProfile(userId);
     const rows = await this.savedNoteRepo.find({
       where: { profile: { id: profile.id } },
-      relations: ['note', 'note.profile', 'note.likes', 'note.comments', 'note.views'],
+      relations: [
+        'note',
+        'note.profile',
+        'note.likes',
+        'note.comments',
+        'note.views',
+      ],
       order: { createdAt: 'DESC' },
     });
-    return rows.map(s => this.enrichNote(s.note, profile.id, s.createdAt));
+    return rows.map((s) => this.enrichNote(s.note, profile.id, s.createdAt));
   }
 
   // === TOGGLE LIKE ===
@@ -400,7 +423,10 @@ export class NotesService {
     return this.noteRepo.save(note);
   }
 
-  async checkPaywallAccess(userId: number, note: NotesEntity): Promise<boolean> {
+  async checkPaywallAccess(
+    userId: number,
+    note: NotesEntity,
+  ): Promise<boolean> {
     if (!note.is_paywall) return true;
     const profile = await this.ensureProfile(userId);
     const paid = await this.paymentRepo.findOne({
@@ -417,7 +443,9 @@ export class NotesService {
 
     const repostNote = this.noteRepo.create({
       title: `Repost: ${original.title}`,
-      content: quote ? `${quote}\n\n---\n${original.content}` : original.content,
+      content: quote
+        ? `${quote}\n\n---\n${original.content}`
+        : original.content,
       profile,
       type: 'repost',
       reposts: [{ profileId: profile.id, createdAt: new Date() }],
@@ -430,11 +458,11 @@ export class NotesService {
   private extractMentionsAndHashtags(content: string) {
     const mentionRegex = /@(\w+)/g;
     const hashtagRegex = /#(\w+)/g;
-    const mentions = [...(content.matchAll(mentionRegex) || [])].map(m => ({
+    const mentions = [...(content.matchAll(mentionRegex) || [])].map((m) => ({
       username: m[1],
       position: m.index,
     }));
-    const hashtags = [...(content.matchAll(hashtagRegex) || [])].map(m => ({
+    const hashtags = [...(content.matchAll(hashtagRegex) || [])].map((m) => ({
       tag: m[1],
       position: m.index,
     }));
@@ -495,14 +523,22 @@ export class NotesService {
   }
 
   // === ENRICH NOTE ===
-  private enrichNote(note: NotesEntity, viewerProfileId?: number, savedAt?: Date) {
+  private enrichNote(
+    note: NotesEntity,
+    viewerProfileId?: number,
+    savedAt?: Date,
+  ) {
     return {
       ...note,
       totalLikes: note.likes?.length || 0,
       totalComments: note.comments?.length || 0,
       totalViews: note.views?.length || 0,
-      isLiked: viewerProfileId ? note.likes?.some(l => l.profile.id === viewerProfileId) : false,
-      isSaved: viewerProfileId ? note.savedBy?.some(s => s.profile.id === viewerProfileId) : false,
+      isLiked: viewerProfileId
+        ? note.likes?.some((l) => l.profile.id === viewerProfileId)
+        : false,
+      isSaved: viewerProfileId
+        ? note.savedBy?.some((s) => s.profile.id === viewerProfileId)
+        : false,
       savedAt,
     };
   }

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
   ManyToOne,
@@ -17,6 +18,7 @@ import { SavedNoteEntity } from './saved-note.entity';
 import { NoteReactionEntity } from './note-reaction.entity';
 import { NoteExportEntity } from './note-export.entity';
 import { PaymentEntity } from 'src/payment/entities/payment.entity';
+import { Category } from './../../category/entities/category.entity';
 
 @Entity('notes')
 export class NotesEntity {
@@ -29,7 +31,6 @@ export class NotesEntity {
   @Column('text')
   content: string;
 
-
   @Column({ type: 'boolean', default: false })
   is_code_mode: boolean;
 
@@ -38,7 +39,6 @@ export class NotesEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   reminder_at: Date | null;
-
 
   @Column({
     type: 'varchar',
@@ -51,7 +51,6 @@ export class NotesEntity {
 
   @Column({ type: 'varchar', nullable: true })
   tags: string | null;
-
 
   @Column({ type: 'timestamp', nullable: true })
   scheduled_at?: Date;
@@ -73,8 +72,6 @@ export class NotesEntity {
 
   @Column({ default: 'published' })
   status: 'draft' | 'published' | 'scheduled';
-
-
 
   @Column({ nullable: true })
   ai_summary?: string;
@@ -105,6 +102,12 @@ export class NotesEntity {
   @UpdateDateColumn()
   updatedAt: string;
 
+  @ManyToOne(() => Category, (category) => category.notes)
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
+
+  @Column({ nullable: true })
+  category_id?: number;
   @OneToMany(() => NoteViewEntity, (v) => v.note, { cascade: true })
   views: NoteViewEntity[];
 
@@ -119,13 +122,11 @@ export class NotesEntity {
 
   @ManyToOne(() => ProfileEntity, (profile) => profile.notes, {
     onDelete: 'CASCADE',
-
   })
   profile: ProfileEntity;
 
   @OneToMany(() => SavedNoteEntity, (savedNote) => savedNote.note)
   savedBy: SavedNoteEntity[];
-
 
   @ManyToMany(() => ProfileEntity)
   @JoinTable({

@@ -33,6 +33,7 @@ import { PinnedNoteEntity } from "./profile/entities/pinned-note.entity";
 import { PaymentModule } from './payment/payment.module';
 import { ExportService } from './export/export.service';
 import { ExportModule } from './export/export.module';
+import { CategoryModule } from './category/category.module';
 
 @Module({
   imports: [
@@ -67,18 +68,15 @@ import { ExportModule } from './export/export.module';
       }),
     }),
 
-    // 🔹 Soatli joblar uchun
     ScheduleModule.forRoot(),
 
-    // 🔹 So‘rovni cheklovchi modul (rate limit)
     ThrottlerModule.forRoot([
       {
-        ttl: 60, // 1 daqiqa
-        limit: 10, // 10 ta so‘rov limit
+        ttl: 60, 
+        limit: 10, 
       },
     ]),
 
-    // 🔹 Bizning modullar
     UsersModule,
     AuthModule,
     ProfileModule,
@@ -90,6 +88,7 @@ import { ExportModule } from './export/export.module';
     ChatModule,
     PaymentModule,
     ExportModule,
+    CategoryModule,
   ],
 
   controllers: [DashboardController],

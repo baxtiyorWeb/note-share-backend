@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, IsIn } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, IsIn, IsNumber } from 'class-validator';
 
 export class CreateNoteDto {
   @IsNotEmpty()
@@ -21,7 +21,6 @@ export class CreateNoteDto {
   @IsDateString()
   reminder_at?: string;
 
-  // 🆕 Yangi maydonlar
   @IsOptional()
   @IsString()
   seo_slug?: string;
@@ -61,4 +60,8 @@ export class CreateNoteDto {
   @IsOptional()
   @IsIn(['draft', 'published', 'scheduled'])
   status?: 'draft' | 'published' | 'scheduled';
+
+  @IsOptional()
+  @IsNumber()
+  category_id?: number;
 }
